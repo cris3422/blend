@@ -1,0 +1,9 @@
+build/
+.DS_Store
+*.pre-*
+*backup*
+__pycache__/
+*.pyc
+.env
+*.key
+*.pem

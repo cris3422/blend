@@ -1,0 +1,1906 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blend</title>
+<style>
+/* Blend · Classic skin (inspired by the Windows 98 CD Player): flat grey windows with 3D bevels, navy
+   gradient title bars, underlined menus, grey waveform displays with faint grid lines, square transport buttons with the
+   seek slider in the same row, sunken status bars. */
+@font-face{font-family:VT323;src:url('fonts/vt323.woff2') format('woff2')}
+@font-face{font-family:'Share Tech Mono';src:url('fonts/sharetech.woff2') format('woff2')}
+:root{
+  --face:#c0c0c0; --hi:#ffffff; --lite:#dfdfdf; --shadow:#808080; --dark:#000000;
+  --title1:#000080; --title2:#1084d0; --title-off1:#808080; --title-off2:#b5b5b5;
+  --disp:#808080; --disp-grid:#6e6e6e; --wave:#e4e4e4;
+  --sel:#000080; --ink:#000; --muted:#404040; --red:#c00000;
+  --ui:Tahoma,Geneva,Verdana,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:#008080;color:var(--ink);font:12px/1.25 var(--ui);overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-font-smoothing:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+input{font:inherit;color:inherit}
+
+/* bevels: raised (buttons, windows) and sunken (displays, fields) */
+.raised,.win,.pill,.seg button,.rbtn,.rnd{box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--hi),inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--lite)}
+.sunken,.lcd,.pl,.plsearch,.screen,.status,.sb>span,.xf,.edwave-box{box-shadow:inset 1px 1px 0 var(--shadow),inset -1px -1px 0 var(--hi),inset 2px 2px 0 var(--dark),inset -2px -2px 0 var(--lite)}
+
+/* ---------- windows ---------- */
+.win{position:relative;display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--face);padding:3px}
+.tbar{flex:none;height:20px;display:flex;align-items:center;gap:4px;padding:0 3px 0 4px;background:linear-gradient(90deg,var(--title-off1),var(--title-off2));color:#d4d0c8}
+.win.on>.tbar,.float>.tbar,#w-mix>.tbar{background:linear-gradient(90deg,var(--title1),var(--title2));color:#fff}
+.tbar b{font:bold 12px var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.tbar .ico{width:16px;height:16px;flex:none;border-radius:50%;background:radial-gradient(circle at 50% 50%,#fff 0 2px,#7ec8ff 2.5px,#cfeaff 5px,#5aa9e6 7px,#2f6fb8 8px)}
+.tbar .cap{display:flex;gap:2px;flex:none}
+.tbar .x{width:16px;height:14px;background:var(--face);color:#000;font:bold 10px/1 var(--ui);display:grid;place-items:center;
+  box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--hi),inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--lite)}
+.tbar .x:active{box-shadow:inset 1px 1px 0 var(--dark),inset -1px -1px 0 var(--hi)}
+.body{flex:1;min-height:0;display:flex;flex-direction:column;gap:4px;padding:4px 3px 3px;position:relative}
+
+/* ---------- menu bar ---------- */
+.menubar{height:24px;display:flex;align-items:center;gap:0;padding:0 6px 0 76px;background:var(--face);border-bottom:1px solid var(--shadow);box-shadow:0 1px 0 var(--hi);position:relative;z-index:20}
+.menubar .m{position:relative}
+.menubar .m>button{height:20px;padding:0 8px;font-size:12px}
+.menubar .m>button u{text-decoration:underline}
+.menubar .m.open>button{background:var(--sel);color:#fff}
+.menubar .dd{position:absolute;top:21px;left:0;min-width:220px;padding:2px;background:var(--face);display:none;
+  box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--lite),inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--hi),2px 2px 0 rgba(0,0,0,.25)}
+.menubar .m.open .dd{display:block}
+.menubar .dd button{display:flex;justify-content:space-between;width:100%;padding:3px 20px 3px 18px;text-align:left}
+.menubar .dd button:hover{background:var(--sel);color:#fff}
+.menubar .dd kbd{font:12px var(--ui);color:inherit;opacity:.8}
+.menubar .wm{margin-left:auto;font:bold 12px var(--ui);color:#000;display:flex;align-items:center;gap:6px}
+.menubar .wm i{display:inline-block;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle,#fff 0 2px,#7ec8ff 2.5px,#cfeaff 4.5px,#5aa9e6 6px,#2f6fb8 7px)}
+
+/* ---------- layout ---------- */
+.app{display:grid;grid-template-rows:auto 1fr;height:100%}
+.layout{display:grid;gap:6px;padding:6px;min-height:0;grid-template-columns:minmax(0,1fr) 420px;grid-template-rows:minmax(120px,1fr) auto auto auto;
+  grid-template-areas:"vis pl" "a pl" "b art" "mix art"}
+#w-vis{grid-area:vis} .deck[data-d="0"]{grid-area:a} .deck[data-d="1"]{grid-area:b} #w-mix{grid-area:mix} #w-pl{grid-area:pl} #w-art{grid-area:art}
+
+/* ---------- controls ---------- */
+.pill,.seg button{height:23px;padding:0 10px;background:var(--face);display:inline-flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;color:#000;font-size:12px}
+.pill:active,.seg button:active,.pill.on,.seg button.on{box-shadow:inset 1px 1px 0 var(--dark),inset -1px -1px 0 var(--hi),inset 2px 2px 0 var(--shadow),inset -2px -2px 0 var(--lite);
+  background:repeating-conic-gradient(var(--face) 0 25%,#dcdcdc 0 50%) 0 0/2px 2px;padding-top:1px}
+.pill.go{font-weight:bold}
+.pill:disabled,.seg button:disabled{color:var(--shadow);text-shadow:1px 1px 0 var(--hi);cursor:default}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:#7a0000;box-shadow:inset 1px 1px 0 rgba(0,0,0,.4)}
+.pill.on .dot{background:#ff2a1a}
+.pill svg{width:11px;height:11px}
+.seg{display:inline-flex;gap:0}
+.rbtn{width:30px;height:23px;flex:none;display:grid;place-items:center;background:var(--face);color:#000}
+.rbtn.big{width:52px}
+.rbtn:active,.rbtn.on{box-shadow:inset 1px 1px 0 var(--dark),inset -1px -1px 0 var(--hi),inset 2px 2px 0 var(--shadow),inset -2px -2px 0 var(--lite)}
+.rbtn svg{width:11px;height:11px}
+.rbtn[data-act="back"],.rbtn[data-act="fwd"]{font:bold 15px/1 var(--ui);width:26px}
+.rnd{height:23px;padding:0 8px;display:inline-flex;align-items:center;background:var(--face);font:12px var(--ui);color:#000}
+.rnd.on{box-shadow:inset 1px 1px 0 var(--dark),inset -1px -1px 0 var(--hi),inset 2px 2px 0 var(--shadow),inset -2px -2px 0 var(--lite)}
+.rndlab{display:flex}
+input[type=range]{-webkit-appearance:none;appearance:none;height:22px;background:transparent;cursor:pointer;min-width:0;flex:1}
+input[type=range]::-webkit-slider-runnable-track{height:4px;background:#fff;box-shadow:inset 1px 1px 0 var(--shadow),inset -1px -1px 0 var(--hi),inset 2px 2px 0 var(--dark)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:21px;margin-top:-9px;background:var(--face);
+  box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--hi),inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--lite)}
+.lab{font-size:12px;color:#000;white-space:nowrap}
+.lab u{text-decoration:underline}
+
+/* ---------- displays ---------- */
+.lcd{position:relative;background:#000;color:#7ff3ff;font-family:VT323,monospace;overflow:hidden}
+.chipl{display:inline-flex;align-items:center;gap:5px;font:12px 'Share Tech Mono',monospace;color:#3fa9b5}
+.chipl b{font-weight:normal;color:#7ff3ff;min-width:38px}
+.chipl.hot b{color:#ffe36b}
+.wavebox{background:var(--disp)!important;color:#000}
+
+/* ---------- decks ---------- */
+.deck .row1{display:flex;gap:6px;min-height:0;align-items:stretch}
+.deck .lcd.main{flex:1;height:64px;display:grid;grid-template-columns:auto auto 1fr;grid-template-rows:1fr auto;column-gap:14px;padding:4px 10px 3px}
+.deck .state{grid-row:1/3;align-self:center;display:flex;align-items:center;gap:8px}
+.deck .state .glyph{font-size:16px;color:#3fa9b5;width:16px}
+.deck .state .t{font-size:clamp(30px,3.3vw,46px);line-height:.8;letter-spacing:.04em;white-space:nowrap}
+.deck .chips{grid-row:1;display:flex;gap:12px;align-items:center}
+.deck .spec{grid-row:1/3;justify-self:end;align-self:center;width:clamp(70px,9vw,130px);height:40px}
+.deck .scroll{grid-column:2;grid-row:2;font-size:18px;line-height:1.15;padding-bottom:2px;white-space:nowrap;overflow:hidden;letter-spacing:.04em;color:#7ff3ff;max-width:100%}
+.deck .scroll span{display:inline-block}
+.deck .side{display:flex;flex-direction:column;gap:3px;justify-content:center}
+.deck .side .rnd{width:64px;height:19px;justify-content:center}
+.deck .wavebox{height:84px;padding:2px}
+.deck .wavebox canvas{width:100%;height:100%;display:block;cursor:grab}
+.deck .row4{display:flex;align-items:center;gap:3px;min-width:0}
+.deck .seek{flex:1;height:23px;position:relative;cursor:pointer;margin:0 3px}
+.deck .seek canvas{position:absolute;inset:0;width:100%;height:100%}
+.deck .row5{display:flex;align-items:center;gap:6px;min-width:0}
+.deck .row5 .vol{display:flex;align-items:center;gap:4px;width:140px;flex:none}
+.deck .row5 .stemrow{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+.deck .row5 .stemrow .pill{height:21px;padding:0 7px;font-size:11.5px}
+.deck .row5 .stemrow .pill.muted{color:var(--shadow);text-decoration:line-through}
+.deck.drop{outline:2px dashed var(--sel);outline-offset:-4px}
+.sb{display:flex;gap:2px;height:20px;flex:none}
+.sb>span{display:flex;align-items:center;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+.sb>span.grow{flex:1}
+.sb .grip{width:14px;align-self:flex-end;height:14px;background:linear-gradient(135deg,transparent 0 45%,var(--hi) 45% 50%,var(--shadow) 50% 58%,transparent 58% 66%,var(--hi) 66% 71%,var(--shadow) 71% 79%,transparent 79%)}
+
+/* ---------- blend window ---------- */
+#w-mix .row{display:flex;align-items:center;gap:6px;min-width:0}
+.xf{position:relative;flex:1;height:30px;cursor:ew-resize;touch-action:none;background:var(--face)}
+.xf .tick{position:absolute;left:50%;top:4px;bottom:4px;width:1px;background:var(--shadow);box-shadow:1px 0 0 var(--hi)}
+.xf::before{content:"";position:absolute;left:10px;right:10px;top:13px;height:4px;background:#fff;box-shadow:inset 1px 1px 0 var(--shadow),inset 2px 2px 0 var(--dark)}
+.xf .knob{position:absolute;top:3px;width:14px;height:24px;margin-left:-7px;background:var(--face);
+  box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--hi),inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--lite)}
+.abl{font:bold 12px var(--ui);width:14px;text-align:center}
+.tempo{height:23px;display:flex;align-items:center;gap:4px;padding:0 8px;background:#000;color:#3fa9b5;font:12px 'Share Tech Mono',monospace;white-space:nowrap;
+  box-shadow:inset 1px 1px 0 var(--shadow),inset -1px -1px 0 var(--hi),inset 2px 2px 0 var(--dark),inset -2px -2px 0 var(--lite)}
+.tempo b{font:20px VT323,monospace;color:#7ff3ff;font-weight:normal}
+.status{flex:1;min-width:0;height:23px;display:flex;align-items:center;gap:10px;padding:0 6px;font:12px var(--ui);white-space:nowrap;overflow:hidden;background:var(--face)}
+.status .r{color:var(--muted)}
+.status .ex{color:#006400;font-weight:bold} .status .gd{color:#7a5a00;font-weight:bold} .status .na{color:var(--red);font-weight:bold}
+
+/* ---------- playlist (list view) ---------- */
+.plsearch{height:22px;border:0;background:#fff;padding:0 6px;font:12px var(--ui);outline:none}
+.pl{flex:1;min-height:0;overflow:auto;background:#fff;padding:2px}
+.pl::-webkit-scrollbar{width:16px;background:repeating-conic-gradient(var(--face) 0 25%,#fff 0 50%) 0 0/2px 2px}
+.pl::-webkit-scrollbar-thumb{background:var(--face);box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--hi),inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--lite)}
+.plhead{display:grid;grid-template-columns:minmax(0,1fr) 88px 46px;flex:none}
+.plhead span{height:20px;display:flex;align-items:center;padding:0 6px;background:var(--face);font-size:12px;
+  box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--hi),inset -2px -2px 0 var(--shadow)}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) 88px 46px;align-items:center;padding:1px 4px;color:#000;font-size:12px;cursor:default;white-space:nowrap}
+.prow .n{overflow:hidden;text-overflow:ellipsis;padding-right:6px}
+.prow .m{font:12px var(--ui);color:var(--muted)}
+.prow .d{text-align:right;padding-right:2px}
+.prow.sel{background:var(--sel);color:#fff}
+.prow.sel .m{color:#fff}
+.prow.dim{color:var(--shadow)}
+.prow .q{font-size:10px;background:#ffffe1;color:#000;border:1px solid #000;padding:0 3px;margin-right:5px}
+.prow .on{font-size:10px;background:#000080;color:#fff;padding:0 4px;margin-right:5px}
+.prow.sel .on{background:#fff;color:#000080}
+.plbar{display:flex;gap:3px;align-items:center;flex-wrap:wrap}
+.plbar .lcdtime{height:22px;padding:0 8px;display:flex;align-items:center;font:12px var(--ui);background:var(--face);color:#000;box-shadow:inset 1px 1px 0 var(--shadow),inset -1px -1px 0 var(--hi)}
+.empty{padding:24px 12px;color:var(--muted);text-align:center}
+
+/* ---------- album art ---------- */
+#w-art .body{align-items:stretch;justify-content:flex-start}
+#w-art .vjbox{flex:1;min-height:0;background:#000;position:relative;box-shadow:inset 1px 1px 0 var(--shadow),inset -1px -1px 0 var(--hi),inset 2px 2px 0 var(--dark),inset -2px -2px 0 var(--lite);padding:2px}
+#w-art .vjstack,.vjstack{position:relative;width:100%;height:100%;overflow:hidden}
+.vjstack>*{position:absolute;inset:0;width:100%;height:100%;display:block}
+.vjbase{filter:grayscale(.88) contrast(1.18) brightness(1.02)}   /* black-and-white base, a little colour left */
+.vjred{background:#d0201a;mix-blend-mode:color;opacity:0;pointer-events:none}   /* red: the one colour moment */
+#w-art .vjnote{position:absolute;inset:0;display:grid;place-items:center;color:#c0c0c0;font:12px var(--ui);text-align:center;padding:20px}
+#w-art .vtool{display:flex;gap:3px;align-items:center}
+#w-art select{height:22px;border:0;background:#fff;padding:0 4px;font:12px var(--ui);max-width:150px}
+#w-art .cover{align-self:center;flex:1}
+#w-art .cover{height:calc(100% - 6px);aspect-ratio:1;max-width:calc(100% - 6px);background:#000 center/cover no-repeat;
+  box-shadow:inset 1px 1px 0 var(--shadow),inset -1px -1px 0 var(--hi),inset 2px 2px 0 var(--dark),inset -2px -2px 0 var(--lite);border:3px solid var(--face);outline:0}
+#w-art .cover.none{display:grid;place-items:center;background:var(--disp);font:bold 56px var(--ui);color:var(--wave)}
+
+/* ---------- visualizer ---------- */
+#w-vis .screen{flex:1;min-height:0;background:#000;padding:2px}
+#w-vis canvas{width:100%;height:100%;display:block}
+#w-vis .vtool{display:flex;gap:3px;align-items:center}
+#w-vis.full{position:fixed;inset:0;z-index:60}
+
+/* ---------- dialogs ---------- */
+.float>.tbar{cursor:default}
+.float{position:fixed;z-index:50;left:50%;top:50%;transform:translate(-50%,-50%);box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--lite),inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--hi),4px 4px 0 rgba(0,0,0,.35)}
+.backdrop{position:fixed;inset:0;z-index:45;background:transparent}
+#w-edit{width:min(960px,94vw);max-height:92vh}
+#w-edit .body{overflow:auto;gap:10px;padding:8px}
+#w-mash{width:min(640px,94vw);max-height:92vh}
+#w-mash .body{overflow:auto;gap:8px;padding:8px}
+#w-mash select{height:23px;font:12px var(--ui);background:#fff;color:#000;border:0;padding:0 4px;max-width:360px}
+.group{border:0;padding:14px 10px 10px;position:relative;margin-top:4px;box-shadow:inset 1px 1px 0 var(--shadow),inset -1px -1px 0 var(--hi),inset 2px 2px 0 var(--hi),inset -2px -2px 0 var(--shadow)}
+.group>.lg{position:absolute;top:-7px;left:8px;padding:0 3px;font:12px var(--ui);background:var(--face)}
+.group .note{font-size:11.5px;color:var(--muted);margin-top:6px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.srow{display:flex;align-items:center;gap:8px;margin:2px 0}
+.srow .lab{width:50px}
+.srow output{width:60px;text-align:right}
+.btnrow{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.edwave{height:70px;width:100%;display:block;cursor:pointer}
+.stems{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.stem{padding:8px;box-shadow:inset 1px 1px 0 var(--shadow),inset -1px -1px 0 var(--hi),inset 2px 2px 0 var(--hi),inset -2px -2px 0 var(--shadow)}
+.stem .n{display:flex;justify-content:space-between;font:bold 11px var(--ui);margin-bottom:2px}
+.stem .ms{display:flex;gap:3px;margin-top:2px}
+.stem .ms .pill{flex:1;height:21px}
+.tray{position:absolute;z-index:30;right:6px;bottom:52px;width:300px;box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--lite),inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--hi),3px 3px 0 rgba(0,0,0,.35)}
+.tray .body{gap:6px;padding:8px}
+#pick{width:min(600px,92vw);height:min(520px,80vh)}
+.eqgrid{display:grid;grid-template-columns:44px 28px 110px 1fr 1fr 1fr;gap:5px 10px;align-items:center}
+.eqgrid .h{font-size:11.5px;color:#404040}
+.eqgrid select{height:22px;border:0;background:#fff;padding:0 4px;font:12px var(--ui)}
+input[type=checkbox]{-webkit-appearance:none;appearance:none;width:13px;height:13px;margin:0;background:#fff;cursor:pointer;
+  box-shadow:inset 1px 1px 0 var(--shadow),inset -1px -1px 0 var(--hi),inset 2px 2px 0 var(--dark),inset -2px -2px 0 var(--lite);display:grid;place-items:center}
+input[type=checkbox]:checked::after{content:"✓";font:bold 11px/1 var(--ui);color:#000}
+input[type=range]:disabled{opacity:.4}
+
+.toast{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:80;padding:3px 8px;background:#ffffe1;color:#000;border:1px solid #000;font:12px var(--ui);white-space:nowrap;box-shadow:2px 2px 0 rgba(0,0,0,.3)}
+.dropall{position:fixed;inset:0;z-index:70;display:grid;place-items:center;pointer-events:none;background:rgba(0,0,128,.25);font:bold 14px var(--ui);color:#fff;text-shadow:1px 1px 0 #000}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="menubar" id="menubar">
+    <div class="m"><button><u>F</u>ile</button><div class="dd">
+      <button data-menu="import">Import Songs… <kbd>⌘O</kbd></button><button data-menu="queueall">Queue All Analysed Songs</button><button data-menu="record">Record Mix</button></div></div>
+    <div class="m"><button><u>M</u>ix</button><div class="dd">
+      <button data-menu="sync">Auto Sync <kbd>S</kbd></button><button data-menu="blend">Auto Blend</button><button data-menu="automix">Automix</button>
+      <button data-menu="center">Centre the Blend Fader</button>
+      <button data-menu="mashup">Mashup: Vocal over Beat… <kbd>M</kbd></button>
+      <button data-menu="autosplit" id="mAutoSplit">Split Stems Automatically</button><button data-menu="hqsplit" id="mHqSplit">High-Quality Splits (slower)</button></div></div>
+    <div class="m"><button><u>V</u>iew</button><div class="dd">
+      <button data-menu="editA">Edit Deck A <kbd>⌘2</kbd></button><button data-menu="editB">Edit Deck B</button><button data-menu="eqA">Equalizer Deck A</button><button data-menu="eqB">Equalizer Deck B</button><button data-menu="vis">Visualizer Full Screen</button></div></div>
+    <div class="m"><button><u>H</u>elp</button><div class="dd">
+      <button data-menu="keys">Keyboard Shortcuts</button></div></div>
+    <span class="wm"><i></i>Blend</span>
+  </nav>
+  <div class="layout">
+    <section class="win" id="w-vis"><div class="tbar"><span class="ico"></span><b>Visualizer</b><span class="cap"><button class="x" id="visfull2" title="Full screen">□</button></span></div>
+      <div class="body"><div class="screen"><canvas id="vis"></canvas></div>
+        <div class="vtool"><div class="seg" id="vismode"><button data-vm="bsod" class="on">Blue Screen</button><button data-vm="bars">Bars</button><button data-vm="tunnel">Tunnel</button></div>
+          <span style="flex:1"></span><button class="pill" id="visfull">Full Screen</button></div></div></section>
+    <section class="win deck" data-d="0"></section>
+    <section class="win deck" data-d="1"></section>
+    <section class="win" id="w-mix"><div class="tbar"><span class="ico"></span><b>Blend</b></div><div class="body" id="mixbody"></div></section>
+    <section class="win" id="w-pl"><div class="tbar"><span class="ico"></span><b>Playlist</b></div><div class="body" id="plbody"></div></section>
+    <section class="win" id="w-art"><div class="tbar"><span class="ico"></span><b id="arttitle">Handycam</b></div><div class="body">
+      <div class="vjbox" id="vjbox"><div class="vjstack"><canvas class="vjbase" id="vj"></canvas><div class="vjred" id="vjred"></div><canvas class="vjtop" id="vjtop"></canvas></div><div class="vjnote" id="vjnote" hidden></div></div>
+      <div class="cover none" id="cover" hidden>♪</div>
+      <div class="vtool"><div class="seg" id="artmode"><button data-am="cam" class="on">Handycam</button><button data-am="art">Album Art</button></div>
+        <select class="sunken" id="vjtheme" title="Which Handycam folder to cut from"><option value="all">All folders</option></select>
+        <span style="flex:1"></span><button class="pill" id="vjpop" title="Its own window: put it on another screen, double-click for full screen">Pop Out</button></div></div></section>
+  </div>
+</div>
+<div class="backdrop" id="backdrop" hidden></div>
+<section class="win float" id="w-edit" hidden></section>
+<section class="win float" id="w-mash" hidden></section>
+<div class="toast" id="toast" hidden></div>
+<div class="dropall" id="dropall" hidden>Drop on a deck to load it there, or anywhere to add to the playlist</div>
+<script>
+window.onerror = (m, s, l) => window.webkit?.messageHandlers?.pd?.postMessage({ t: 'log', m: `error ${m} line ${l}` });
+</script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const native = window.webkit?.messageHandlers?.pd;
+const post = m => native?.postMessage(m);
+const eng = (d, cmd, a = {}) => post({ ...a, t: 'eng', deck: d.i, cmd });   // type last: an argument can never overwrite it
+const mix = (cmd, a = {}) => post({ ...a, t: 'mix', cmd });
+const say = m => native ? post({ t: 'log', m: String(m) }) : console.log(m);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const fmt = s => { if (!isFinite(s) || s < 0) s = 0; return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0'); };
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let toastT; function toast(m) { const t = $('#toast'); t.textContent = m; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2200); }
+const ICON = {
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4.5" width="4.2" height="15" rx="1"/><rect x="13.8" y="4.5" width="4.2" height="15" rx="1"/></svg>' };
+
+// ---------------- state ----------------
+// parametric EQ: 5 bands, each low shelf / peak / high shelf / low cut / high cut, with frequency, gain (dB) and Q
+const PEQ_TYPES = [['lowShelf', 'Low shelf'], ['parametric', 'Peak'], ['highShelf', 'High shelf'], ['highPass', 'Low cut'], ['lowPass', 'High cut']];
+function peqDefault() { return { on: true, bands: [
+  { type: 'lowShelf', f: 100, g: 0, q: 0.7, on: true }, { type: 'parametric', f: 300, g: 0, q: 1, on: true }, { type: 'parametric', f: 1000, g: 0, q: 1, on: true },
+  { type: 'parametric', f: 3500, g: 0, q: 1, on: true }, { type: 'highShelf', f: 8000, g: 0, q: 0.7, on: true }] }; }
+const PEQ_PRESETS = [
+  ['Flat', []],
+  ['More bass', [[0, 'lowShelf', 100, 5, 0.7]]],
+  ['Less bass (for blending)', [[0, 'lowShelf', 120, -12, 0.7]]],
+  ['Vocal presence', [[1, 'parametric', 250, -2, 1], [3, 'parametric', 3000, 3.5, 0.9]]],
+  ['Air', [[4, 'highShelf', 10000, 4, 0.7]]],
+  ['Smile', [[0, 'lowShelf', 100, 4, 0.7], [2, 'parametric', 1000, -3, 0.8], [4, 'highShelf', 8000, 4, 0.7]]],
+  ['Telephone', [[0, 'highPass', 400, 0, 0.8], [2, 'parametric', 1500, 5, 0.8], [4, 'lowPass', 3200, 0, 0.8]]],
+  ['Thin out (low cut)', [[0, 'highPass', 250, 0, 0.7]]]];
+let lib = [];                              // from the native library
+const AN = {};                             // key -> analysis json
+const COLORS = ['#F5822E', '#5AB0FF'];
+const mkDeck = i => ({ i, name: 'AB'[i], key: null, song: null, an: null, playing: false, pos: 0, at: 0, dur: 0, engSpeed: 1, stems: [],
+  splitting: false, speed: 1, pitch: 0, keylock: true, vol: 1, peq: peqDefault(), filter: 0, echo: { on: false, beats: 0.5, amt: 35 }, reverb: 0,
+  stemVol: {}, hist: [], fut: [] });
+// the AI split's parts, in the order the controls show them (instrumentals = older 3-part splits)
+const STEMS = [['vocals', 'Vocals'], ['drums', 'Drums'], ['bass', 'Bass'], ['melody', 'Melody'], ['fx', 'FX'], ['instrumentals', 'Instr']];
+const stemLabel = n => (STEMS.find(x => x[0] === n) || [n, n])[1];
+const sv = (d, n) => d.stemVol[n] ?? 1;
+const stemList = d => STEMS.map(x => x[0]).filter(n => d.stems.some(s => s.name === n));
+const D = [mkDeck(0), mkDeck(1)];
+const M = { autoSplit: true, hqSplit: false, fusion: 'classic', queue: [], automix: false, lastX: 0.5, dir: 1, crossfade: 0.5, rec: false, syncOn: false, leader: 0, follower: 1, m: 1, c: 0, syncError: 0, trans: null, bars: 16, view: 'mixer', editDeck: 0 };
+let focus = D[0];
+try { const pf = JSON.parse(localStorage.getItem('blend-split') || '{}'); if (pf.auto === false) M.autoSplit = false; if (pf.hq) M.hqSplit = true; } catch (e) {}
+const saveSplitPrefs = () => { try { localStorage.setItem('blend-split', JSON.stringify({ auto: M.autoSplit, hq: M.hqSplit })); } catch (e) {} };
+const other = d => D[1 - d.i];
+
+// ---------------- analysis helpers (beat grid maths) ----------------
+function beatIndex(an, t) {          // fractional beat number at source time t (extrapolates past the ends)
+  const b = an.beats, n = b.length; if (n < 2) return t / (60 / (an.bpm || 120));
+  if (t <= b[0]) return (t - b[0]) / (b[1] - b[0]);
+  if (t >= b[n - 1]) return n - 1 + (t - b[n - 1]) / (b[n - 1] - b[n - 2]);
+  let lo = 0, hi = n - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (b[m] <= t) lo = m; else hi = m; }
+  return lo + (t - b[lo]) / (b[lo + 1] - b[lo]);
+}
+function beatTime(an, x) {           // source time of fractional beat number x
+  const b = an.beats, n = b.length; if (n < 2) return x * 60 / (an.bpm || 120);
+  if (x <= 0) return b[0] + x * (b[1] - b[0]);
+  if (x >= n - 1) return b[n - 1] + (x - n + 1) * (b[n - 1] - b[n - 2]);
+  const i = Math.floor(x); return b[i] + (x - i) * (b[i + 1] - b[i]);
+}
+const downIdx = an => an._di || (an._di = an.downbeats.map(t => Math.round(beatIndex(an, t))));
+function lastDownbeatIdx(an, idx) { const di = downIdx(an); let best = di[0] ?? 0; for (const x of di) { if (x <= idx + 0.01) best = x; else break; } return best; }
+function nextDownbeatIdx(an, idx) { for (const x of downIdx(an)) if (x > idx) return x; return Math.ceil(idx / 4) * 4; }
+const effBpm = d => d.an ? d.an.bpm * (d.playing || d.engSpeed ? d.engSpeed : d.speed) : 0;
+function camel(c) { const m = /^(\d+)([AB])$/.exec(c || ''); return m ? { n: +m[1], l: m[2] } : null; }
+
+// tempo plan: follower beats per leader beat (m) and the follower's speed relative to the leader
+function tempoPlan(L, F) {
+  const opts = [1, 2, 0.5].map(m => ({ m, r: m * L.an.bpm / F.an.bpm }));   // follower speed / leader speed
+  opts.sort((a, b) => Math.abs(Math.log(a.r)) - Math.abs(Math.log(b.r)));
+  return opts[0];
+}
+
+// ---------------- match rating (from the real analysis numbers) ----------------
+function matchInfo() {
+  const [A, B] = D;
+  if (!A.an || !B.an) return null;
+  const p = tempoPlan(A, B), pct = Math.abs(p.r - 1) * 100;
+  const ka = camel(A.an.camelot), kb = camel(B.an.camelot), kconf = Math.min(A.an.key_confidence, B.an.key_confidence);
+  let key = 'keys unknown', keyOK = false;
+  if (ka && kb) {
+    const dn = Math.min((ka.n - kb.n + 12) % 12, (kb.n - ka.n + 12) % 12);
+    if (dn === 0 && ka.l === kb.l) { key = `same key ${A.an.camelot}`; keyOK = true; }
+    else if (dn === 1 && ka.l === kb.l) { key = `neighbouring keys ${A.an.camelot} · ${B.an.camelot}`; keyOK = true; }
+    else if (dn === 0) { key = `relative keys ${A.an.camelot} · ${B.an.camelot}`; keyOK = true; }
+    else key = `keys clash ${A.an.camelot} · ${B.an.camelot}`;
+  }
+  const keyUnsure = kconf < 0.3;
+  if (keyUnsure) key += ' (unsure)';
+  const grid = Math.min(A.an.bpm_confidence, B.an.bpm_confidence), steady = A.an.tempo_stable && B.an.tempo_stable;
+  let rate = 'na', label = 'Needs Adjustment';
+  if (pct <= 3 && keyOK && !keyUnsure && grid >= 0.5) { rate = 'ex'; label = 'Excellent Match'; }
+  else if (pct <= 6 && (keyOK || keyUnsure)) { rate = 'gd'; label = 'Good Match'; }
+  else if (pct <= 6) { rate = 'gd'; label = 'Good Match · keys clash'; }
+  const half = p.m !== 1 ? (p.m === 2 ? ' (B in double time)' : ' (B in half time)') : '';
+  const lines = [`${pct.toFixed(1)}% tempo change${half}`, key, `beat grid ${Math.round(grid * 100)}%${steady ? '' : ' · tempo moves'}`];
+  if (pct > 8) lines.unshift(`Too far apart for a clean blend (${pct.toFixed(0)}%)`);
+  return { rate, label, lines, pct };
+}
+
+// suggested transition point in the playing song: its next Outro/Break section, else the next 16-bar line
+function suggestOut(X) {
+  const an = X.an, pos = livePos(X), idx = beatIndex(an, pos);
+  for (const s of an.sections) if (s.start > pos + 8 && (s.label === 'Outro' || s.label === 'Break')) return { t: s.start, why: s.label };
+  const d0 = downIdx(an)[0] ?? 0, step = 64;   // 16 bars
+  let k = d0; while (k <= idx + 16) k += step;
+  return { t: beatTime(an, k), why: '16-bar line' };
+}
+// where the incoming song starts: its first cue, or trim-in, or its first downbeat
+function cueOf(d) { const s = d.song; if (s?.cues?.length) return toDeck(d, s.cues[0]); if (s?.trimIn != null) return toDeck(d, s.trimIn); return d.an?.first_downbeat ?? 0; }
+
+// ---------------- sync ----------------
+function syncReady() { return D.every(d => d.an && d.key); }
+function setSync(on) {
+  if (MZ.on) { if (!on) mzEnd(); return; }   // in a mashup the lock belongs to the Mashup window
+  if (on && !syncReady()) { toast('Load two analysed songs first'); return; }
+  M.syncOn = on;
+  // turning sync off keeps each song at the tempo it's playing now (no jump back)
+  if (!on) { mix('unfollow'); for (const d of D) { if (d._syncSpeed) { d.speed = d._syncSpeed; d._syncSpeed = 0; } d.engSpeed = d.speed; applyTime(d); } render(); return; }
+  // leader = the playing deck (or A). Apple's stretcher only stays exact when slowing down, so the faster song always
+  // eases down to the slower one's tempo: if the follower would have to speed up, the roles swap.
+  let L = D.find(d => d.playing) || D[0], F = other(L);
+  let p = tempoPlan(L, F);
+  if (p.r * L.speed > 1.0001) { [L, F] = [F, L]; p = tempoPlan(L, F); }
+  M.leader = L.i; M.follower = F.i; M.m = p.m;
+  for (const d of D) d._preSync = d.speed;
+  M.r = p.r;
+  // one shared tempo for both songs, counted in the leader's beats. It starts at the slower song's own tempo and can be
+  // lowered (both slow together). It can't go above that yet: Apple's stretcher isn't beat-exact when speeding up.
+  M.masterMax = L.an.bpm;
+  setMaster(L.an.bpm * Math.min(1, L.speed), true);
+  if (F.playing && L.playing) {
+    // both playing: line the downbeats up with the smallest jump
+    const iL = beatIndex(L.an, livePos(L)), iF = beatIndex(F.an, livePos(F));
+    const c0 = lastDownbeatIdx(F.an, iF) - p.m * lastDownbeatIdx(L.an, iL), step = 4 * Math.max(1, p.m);
+    M.c = c0 - step * Math.round((p.m * iL + c0 - iF) / step);
+  }   // otherwise the beat offset is set when the second song drops in (dropIn)
+  sendFollow(); render();
+  const mi = matchInfo(); if (mi && mi.pct > 8) toast(`Synced, but the tempos are ${mi.pct.toFixed(0)}% apart: expect it to sound stretched`);
+}
+function setMaster(bpm, first = false) {
+  if (!M.syncOn || MZ.on) return;
+  const L = D[M.leader], F = D[M.follower];
+  M.masterBpm = clamp(Math.round(bpm * 10) / 10, M.masterMax * 0.84, M.masterMax);
+  const sL = M.masterBpm / L.an.bpm, sF = M.r * sL;
+  L._syncSpeed = sL; F._syncSpeed = sF;
+  glide(L, sL, L.playing ? (first ? 4 : 1.5) : 0);   // playing songs ease to the new tempo
+  if (!(L.playing && F.playing)) glide(F, sF, F.playing ? (first ? 4 : 1.5) : 0);   // with both playing, the lock carries the follower
+  if (!first) renderMix();
+}
+// the native lock steers by anchors; refresh them from the beat grids so live-tempo songs stay locked too
+function sendFollow() {
+  if (!M.syncOn || MZ.on) return;   // a mashup's lock is a fixed straight line (mzFollow), not refreshed from the grids
+  const L = D[M.leader], F = D[M.follower];
+  const aL = livePos(L), x = M.m * beatIndex(L.an, aL) + M.c, aF = beatTime(F.an, x);
+  const ratio = (beatTime(F.an, M.m * beatIndex(L.an, aL + 2) + M.c) - aF) / 2;
+  mix('follow', { follower: F.i, leader: L.i, ratio, anchorLeader: aL, anchorFollower: aF });
+}
+setInterval(sendFollow, 1000);
+
+// tempo glides: a playing song never jumps tempo, it eases there
+const glides = {};
+function glide(d, target, secs, done) {
+  clearInterval(glides[d.i]);
+  const from = d.engSpeed || d.speed, t0 = performance.now();
+  if (Math.abs(target - from) < 0.0005 || !d.playing) { d.engSpeed = target; eng(d, 'speed', { v: target }); applyPitch(d, target); done?.(); return; }
+  glides[d.i] = setInterval(() => {
+    const p = Math.min(1, (performance.now() - t0) / (secs * 1000)), v = from + (target - from) * sm(p);
+    d.engSpeed = v; eng(d, 'speed', { v }); if (!d.keylock) applyPitch(d, v);
+    if (p >= 1) { clearInterval(glides[d.i]); done?.(); }
+  }, 50);
+}
+
+// ---------------- deck actions ----------------
+const livePos = d => Math.min(d.pos + (d.playing ? (performance.now() - d.at) / 1000 * (d.engSpeed || 1) : 0), d.dur || Infinity);
+async function getAnalysis(s) {
+  if (!s?.analysed) return null;
+  if (AN[s.key]) return AN[s.key];
+  try { const r = await fetch(`data/analysis/${encodeURIComponent(s.safe)}.json`); AN[s.key] = await r.json(); return AN[s.key]; } catch (e) { say('analysis fetch ' + e); return null; }
+}
+async function loadSong(d, key, play = false) {
+  const s = lib.find(x => x.key === key); if (!s) return;
+  if (MZ.on && (d === mzB() || d === mzV())) mzEnd(true);
+  if (M.syncOn) setSync(false);
+  if (M.trans) cancelTransition();
+  d.mashR = 1; d.mashSemis = 0; d.mashing = false; MZ.entry = d === mzV() ? null : MZ.entry;
+  clearInterval(glides[d.i]); d.speed = 1; d.engSpeed = 1; d._syncSpeed = 0; d._preSync = 1;   // a new song starts at its own tempo
+  d.key = key; d.song = s; d.an = null; d.pos = s.trimIn || 0; d.at = performance.now(); d.dur = s.duration || 0; d.playing = false; d.hist = []; d.fut = [];
+  eng(d, 'load', { key, play: false }); applyAll(d);
+  if (d.pos) eng(d, 'seek', { pos: d.pos });
+  if (play) { eng(d, 'play'); d.playing = true; }
+  d.an = await getAnalysis(s);
+  focus = d; render();
+  if (M.autoSplit && !s.stems && !s.splitting) setTimeout(() => { if (d.key === key && !hasStems(d)) startSplit(d, true); }, 1200);
+}
+function toggle(d) {
+  if (!d.key) { openPicker(d); return; }
+  if (d.playing) { eng(d, 'pause'); d.pos = livePos(d); d.playing = false; render(); return; }
+  const R = other(d);
+  if (MZ.on && d === mzV() && mzB().playing) { mzDropNext(); return; }
+  if (M.syncOn && R.playing && d.an && R.an) { dropIn(d, nextDownbeatIdx(R.an, beatIndex(R.an, livePos(R) + 0.25))); render(); return; }
+  eng(d, 'play'); d.at = performance.now(); d.playing = true; render();
+}
+// start deck d from its cue exactly on beat `refBeat` of the other (playing) deck, and set the beat offset for the lock
+function dropIn(d, refBeat) {
+  const R = other(d), from = cueOf(d), iD = Math.round(beatIndex(d.an, from));
+  M.c = d.i === M.follower ? iD - M.m * refBeat : refBeat - M.m * iD;
+  const wait = Math.max(0, (beatTime(R.an, refBeat) - livePos(R)) / (R.engSpeed || 1));
+  mix('playAt', { deck: d.i, from, leader: R.i, leaderPos: beatTime(R.an, refBeat) });
+  d.pos = from; d.at = performance.now() + wait * 1000; d.playing = true; sendFollow();
+  return wait;
+}
+function startSplit(d, quiet = false) {
+  if (!d.key || d.splitting || hasStems(d) && isDJ(d)) return;
+  eng(d, 'split', { engine: 'dj', shifts: M.hqSplit ? 2 : 1 }); d.splitting = true; d.splitPct = 0;
+  if (!quiet) toast(`Splitting deck ${d.name}: vocals, drums, bass, melody, FX`); renderDeckBits(d);
+}
+function jump(d, dir) {
+  if (!d.key) return;
+  if (MZ.on && d === mzB() && d.playing) { mzJump(dir * 4); return; }
+  const pos = livePos(d);
+  const t = d.an ? beatTime(d.an, beatIndex(d.an, pos) + dir * 16) : pos + dir * 10;
+  seek(d, clamp(t, 0, (d.dur || 1) - 0.05)); renderDeckBits(d);
+}
+function seek(d, t) { if (!d.key) return; t = clamp(t, 0, (d.dur || 1) - 0.05); const was = livePos(d); eng(d, 'seek', { pos: t }); d.pos = t; d.at = performance.now();
+  if (MZ.on && mzV().playing && (d === mzB() || d === mzV())) {   // mashup: keep the other song going, re-anchor in whole bars (beat) or beats (vocal)
+    MZ.jump = null;
+    if (d === mzB()) { const tgt = MZ.aB + MZ.ratio * (livePos(mzV()) - MZ.aV), k = Math.round((t - tgt) / (4 * MZ.gB.P)); MZ.aB += k * 4 * MZ.gB.P; }
+    else { MZ.aV += Math.round((t - was) / MZ.PV) * MZ.PV; }
+    mzFollow(); return;
+  }
+  if (M.syncOn && d.i === M.follower) { const L = D[M.leader]; M.c = beatIndex(d.an, t) - M.m * beatIndex(L.an, livePos(L)); M.c = Math.round(M.c); sendFollow(); } }
+function applyPitch(d, speed = d.engSpeed || d.speed) { eng(d, 'pitch', { v: d.pitch + (d.keylock ? 0 : 12 * Math.log2(speed)) }); }
+function applyTime(d) { if (!(M.syncOn && d.i === M.follower)) { d.engSpeed = d.speed; eng(d, 'speed', { v: d.speed }); } applyPitch(d); }
+const qToOct = q => 2 / Math.LN2 * Math.asinh(1 / (2 * q));   // the engine takes bandwidth in octaves
+function applyEq(d) {
+  d.peq.bands.forEach((b, i) => eng(d, 'eq', { band: i, type: b.type, freq: b.f, gain: b.g, bw: qToOct(b.q), bypass: !d.peq.on || !b.on }));
+  computePeq(d);
+}
+function echoTime(d) { const b = effBpm(d) || 120; return d.echo.beats * 60 / b; }
+function applyFx(d) { eng(d, 'reverb', { wet: d.reverb }); applyFusion(true); }
+function applyVol(d) { eng(d, 'volume', { v: d.vol }); }
+function applyStems(d) { applyFusion(true); }
+const PEQ_N = 220, PEQ_F = new Float32Array(PEQ_N).map((_, i) => 20 * 1000 ** (i / (PEQ_N - 1)));
+const PEQ_CTX = new OfflineAudioContext(1, 128, 48000);
+const WA_TYPE = { lowShelf: 'lowshelf', highShelf: 'highshelf', parametric: 'peaking', highPass: 'highpass', lowPass: 'lowpass' };
+function computePeq(d) {
+  d._curve = d._curve || new Float32Array(PEQ_N); d._curve.fill(0);
+  if (!d.peq.on) return d._curve;
+  const mag = new Float32Array(PEQ_N), ph = new Float32Array(PEQ_N);
+  for (const b of d.peq.bands) {
+    if (!b.on) continue;
+    const n = PEQ_CTX.createBiquadFilter(); n.type = WA_TYPE[b.type]; n.frequency.value = b.f; n.gain.value = b.g; n.Q.value = b.q;
+    n.getFrequencyResponse(PEQ_F, mag, ph); for (let k = 0; k < PEQ_N; k++) d._curve[k] += 20 * Math.log10(Math.max(mag[k], 1e-6));
+  }
+  return d._curve;
+}
+function applyAll(d) { applyTime(d); applyEq(d); applyFx(d); applyVol(d); }
+const hasStems = d => d.stems.some(s => s.name === 'vocals');
+const isDJ = d => d.stems.some(s => s.name === 'drums');
+
+// edit history (undo / redo) per deck: speed, pitch, keylock, EQ, cues, trim
+const snap = d => JSON.stringify({ speed: d.speed, pitch: d.pitch, keylock: d.keylock, peq: d.peq, cues: d.song?.cues || [], trimIn: d.song?.trimIn ?? null, trimOut: d.song?.trimOut ?? null });
+let histT = 0;
+function remember(d) { clearTimeout(histT); const before = d._pending ?? snap(d); d._pending = before; histT = setTimeout(() => { if (d._pending !== snap(d)) { d.hist.push(d._pending); d.fut = []; } d._pending = null; }, 400); }
+function restore(d, s) { const o = JSON.parse(s); Object.assign(d, { speed: o.speed, pitch: o.pitch, keylock: o.keylock, peq: o.peq }); if (d.song) { d.song.cues = o.cues; d.song.trimIn = o.trimIn; d.song.trimOut = o.trimOut; saveMeta(d); } applyTime(d); applyEq(d); render(); if (EQW.open && EQW.d === d) renderEqWin(); }
+function undo(d) { if (!d.hist.length) return; d.fut.push(snap(d)); restore(d, d.hist.pop()); }
+function redo(d) { if (!d.fut.length) return; d.hist.push(snap(d)); restore(d, d.fut.pop()); }
+function saveMeta(d) { if (d.song) post({ t: 'lib', cmd: 'meta', key: d.key, cues: d.song.cues || [], trimIn: d.song.trimIn ?? null, trimOut: d.song.trimOut ?? null }); }
+
+// ---------------- crossfader + Fusion ----------------
+// One blend fader, four ways to blend (like djay's Crossfader Fusion):
+//  classic: plain equal-power volume fade
+//  swap:    stem-aware. Drums come in early, the bass swaps in one go at the middle, vocals never overlap
+//           (out by 40%, in from 60%), melody and FX crossfade. Needs both songs split; unsplit songs fade whole.
+//  filter:  the quieter song is thinned with a high-pass, so the two never fight in the low end
+//  echo:    the song you're leaving echoes out: its music stops feeding in but the beat-timed echo keeps ringing
+const FUSION = [['classic', 'Classic'], ['swap', 'Stem swap'], ['filter', 'Filter'], ['echo', 'Echo out']];
+const sm = x => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+const share = (d, x = M.crossfade) => d.i === 0 ? 1 - x : x;   // how much of the blend is this deck, 0..1
+function stemCurve(name, s) {
+  if (name === 'drums') return sm((s - 0.15) / 0.35);
+  if (name === 'bass') return sm((s - 0.45) / 0.1);
+  if (name === 'vocals') return sm((s - 0.6) / 0.3);
+  return Math.sin(s * Math.PI / 2);   // melody, fx, instrumentals, whole song
+}
+const sent = {};
+function sendOnce(k, d, cmd, a, v) { if (sent[k] !== undefined && Math.abs(sent[k] - v) < 0.004) return; sent[k] = v; eng(d, cmd, a); }
+function applyFusion(force = false) {
+  if (force) for (const k in sent) delete sent[k];
+  const x = M.crossfade, mode = M.fusion;
+  const nativeX = mode === 'swap' || mode === 'echo' ? 0.5 : x;
+  if (sent.xf === undefined || Math.abs(sent.xf - nativeX) > 0.002) { sent.xf = nativeX; mix('crossfade', { v: nativeX }); }
+  for (const d of D) {
+    const s = share(d), names = d.stems.length ? d.stems.map(t => t.name) : [];
+    const leaving = (M.dir > 0 && d.i === 0) || (M.dir < 0 && d.i === 1);
+    for (const n of names) {
+      let g = sv(d, n);
+      if (mode === 'swap') g *= Math.SQRT2 * (isDJ(d) ? stemCurve(n, s) : stemCurve('melody', s));
+      else if (mode === 'echo') g *= Math.SQRT2 * (leaving ? sm((s - 0.15) / 0.25) : stemCurve('melody', s));
+      sendOnce(d.i + 'st' + n, d, 'stemVolume', { stem: n, v: g }, g);
+    }
+    const f = mode === 'filter' && s < 0.999 ? Math.max(d.filter, 0.85 * (1 - s) ** 2) : d.filter;
+    sendOnce(d.i + 'filter', d, 'filter', { v: f }, f);
+    const wet = mode === 'echo' && leaving ? 70 * sm((0.75 - s) / 0.5) : (d.echo.on ? d.echo.amt : 0);
+    const fb = mode === 'echo' && leaving && wet > 0 ? 55 : 45;
+    sendOnce(d.i + 'echo', d, 'echo', { time: echoTime(d), feedback: fb, mix: wet }, wet + fb / 1000 + echoTime(d) / 100);
+  }
+}
+function setFade(v) {
+  v = clamp(v, 0, 1); if (Math.abs(v - M.lastX) > 0.001) M.dir = v > M.lastX ? 1 : -1; M.lastX = v;
+  M.crossfade = v; applyFusion(); const k = $('#xfKnob'); if (k) k.style.left = (v * 100) + '%';
+}
+function setFusion(mode) {
+  if (mode === 'swap' && !D.every(isDJ)) toast('Stem swap works best with both songs split. Unsplit songs fade whole.');
+  M.fusion = mode; applyFusion(true); renderMixer();
+}
+function startTransition(outAt) {
+  if (MZ.on) { toast('End the mashup first (Mix → Mashup)'); return; }
+  const X = M.crossfade <= 0.5 ? D[0] : D[1], Y = other(X);
+  if (!X.an || !Y.an || !X.playing) { toast('Play one analysed song and load another first'); return; }
+  const plan = tempoPlan(X, Y), far = Math.abs(plan.r - 1) > 0.08;
+  const out = outAt || suggestOut(X), bars = far ? 4 : M.bars;
+  const i0 = beatIndex(X.an, out.t), i1 = i0 + bars * 4;
+  let prevFusion = null;
+  if (far) {
+    // too far apart to stretch cleanly: no sync, a short echo-out, the next song starts on the out point at its own tempo
+    if (M.syncOn) setSync(false);
+    prevFusion = M.fusion; M.fusion = 'echo'; applyFusion(true);
+    if (!Y.playing) { const from = cueOf(Y); mix('playAt', { deck: Y.i, from, leader: X.i, leaderPos: out.t }); Y.pos = from; Y.at = performance.now() + Math.max(0, (out.t - livePos(X)) / (X.engSpeed || 1)) * 1000; Y.playing = true; }
+  } else {
+    if (!M.syncOn) setSync(true);
+    if (!Y.playing) dropIn(Y, Math.round(i0));   // Y comes in from its cue on the transition's first downbeat
+  }
+  M.trans = { X: X.i, Y: Y.i, i0, i1, from: M.crossfade, to: Y.i === 1 ? 1 : 0,  why: out.why, swapped: false, far, prevFusion };
+  // classic blends hold the incoming bass back until the halfway swap (Stem swap does this with the bass stems)
+  if (M.fusion !== 'swap' && !far) eng(Y, 'eq', { band: 0, type: 'lowShelf', freq: 120, gain: -24, bw: 1, bypass: false });
+  toast(far ? `Tempos ${Math.round(Math.abs(plan.r - 1) * 100)}% apart: echo-out into ${Y.name} at ${fmt(out.t)}` : `Blending into ${Y.name} at ${fmt(out.t)} (${out.why}) over ${bars} bars`); render();
+}
+function tickTransition() {
+  const T = M.trans; if (!T) return;
+  const X = D[T.X], Y = D[T.Y], p = (beatIndex(X.an, livePos(X)) - T.i0) / (T.i1 - T.i0);
+  if (p < 0) { $('#transNote') && ($('#transNote').textContent = `Blend starts in ${Math.max(0, Math.ceil(-p * (T.i1 - T.i0) / 4))} bars`); return; }
+  const e = p >= 1 ? 1 : p * p * (3 - 2 * p);
+  setFade(T.from + (T.to - T.from) * e);
+  if (!T.swapped && p >= 0.5) { T.swapped = true; if (M.fusion !== 'swap' && !T.far) { eng(X, 'eq', { band: 0, type: 'lowShelf', freq: 120, gain: -24, bw: 1, bypass: false }); applyEq(Y); } }
+  if ($('#transNote')) $('#transNote').textContent = `Blending · ${Math.round(clamp(p, 0, 1) * 100)}%`;
+  if (p >= 1) {
+    M.trans = null; M.lastTrans = T; applyEq(X); eng(X, 'pause'); X.pos = livePos(X); X.playing = false;
+    const base = Y._preSync ?? 1, baseX = X._preSync ?? 1;
+    if (M.syncOn) setSync(false);
+    X.speed = baseX; X.engSpeed = baseX; applyTime(X);   // the finished song goes back to its own tempo too
+    if (T.prevFusion) M.fusion = T.prevFusion;
+    // after the blend the new song eases back to its own tempo, so a long mix doesn't drift ever slower
+    Y.speed = base; glide(Y, base, 8);
+    toast(`Now on ${Y.name} · Undo puts ${X.name} back`); applyFusion(true); render();
+  }
+}
+function cancelTransition() { const T = M.trans; if (!T) return; M.trans = null; if (T.prevFusion) M.fusion = T.prevFusion; applyEq(D[T.X]); applyEq(D[T.Y]); setFade(T.from); applyFusion(true); render(); }
+function undoTransition() { const T = M.lastTrans; if (!T) return; M.lastTrans = null; const X = D[T.X]; seek(X, beatTime(X.an, T.i0)); eng(X, 'play'); X.playing = true; X.at = performance.now(); setFade(T.from); toast(`Back on ${X.name}`); render(); }
+
+// ---------------- Automix: play the queue, blending each song into the next at its outro ----------------
+function setAutomix(on) {
+  if (on && MZ.on) { toast('End the mashup first (Mix → Mashup)'); return; }
+  M.automix = on;
+  if (on) {
+    const playing = D.find(d => d.playing);
+    if (!playing) {
+      const A = D[M.crossfade <= 0.5 ? 0 : 1];
+      if (A.key) toggle(A);
+      else if (M.queue.length) { loadSong(A, M.queue.shift(), true); }
+      else { M.automix = false; toast('Queue some songs in the Library first'); }
+    }
+    if (M.automix) toast('Automix on: each song blends into the next at its outro');
+  }
+  render();
+}
+// where the playing song should start blending out: its last Outro if there's room, else so the blend ends just before its end
+function automixOut(X) {
+  const an = X.an, need = M.bars * 4, end = X.song?.trimOut ?? (X.dur || an.duration) - 1;
+  const endIdx = beatIndex(an, end), pos = livePos(X);
+  const outro = [...an.sections].reverse().find(s => s.label === 'Outro');
+  if (outro && beatIndex(an, outro.start) + need <= endIdx + 4 && outro.start > pos + 4) return { t: outro.start, why: 'Outro' };
+  let idx = lastDownbeatIdx(an, endIdx - need);
+  let t = beatTime(an, idx); if (t < pos + 4) t = pos + 4;
+  return { t, why: 'end of song' };
+}
+let automixBusy = false;
+async function automixTick() {
+  if (!M.automix || automixBusy || M.trans) return;
+  const X = D.find(d => d.playing && share(d) >= 0.5) || D.find(d => d.playing);
+  if (!X) { if (!M.queue.length) { M.automix = false; toast('Automix finished the queue'); render(); } return; }
+  const Y = other(X);
+  if (!Y.playing && (!Y.key || Y._automixUsed) && M.queue.length) {   // load the next song on the free deck
+    automixBusy = true; Y._automixUsed = false;
+    await loadSong(Y, M.queue.shift(), false); automixBusy = false; render(); return;
+  }
+  if (Y.playing || !X.an || !Y.an) return;
+  if (Y._automixUsed) return;   // the free deck holds a song that already played and the queue is empty: let this one play out
+  const out = automixOut(X);
+  if (livePos(X) >= out.t - 25) { Y._automixUsed = true; X._automixUsed = true; startTransition(out); }
+}
+setInterval(automixTick, 500);
+
+// ---------------- Mashup: one song's vocal over the other song's beat ----------------
+// The method from the "Maria x My Love" breakdown, for any two songs:
+//  1 tempo   the vocal song is re-rendered offline at the beat song's tempo with its key kept (Rubber Band), so it plays at
+//            speed 1 and stays beat-exact (Apple's live stretcher drifts when it speeds a song up). The beat is never touched.
+//  2 key     an optional semitone shift, baked into the same render.
+//  3 stems   the beat song without its vocal + the vocal song's vocal only.
+//  4 drop-in a bar line of the vocal lands on a bar line of the beat; from then on beat time = aB + ratio x (vocal time - aV),
+//            a straight line the native lock holds (the vocal leads, the beat follows).
+//  5 arrange the beat jumps whole bars on its own bar lines while the vocal keeps going; when the vocal ends it can skip
+//            to the beat's outro or ending.
+// Tempos come from a phase-coherence fit through the whole beat grid (fitGrid), not the rounded BPM, so long songs don't drift.
+const MZ = { open: false, beat: 0, mult: 0, semis: 0, dropBar: 3, nextBars: 4, entry: null, phrases: {}, scanning: null, after: 'last',
+  on: false, aV: 0, aB: 0, ratio: 1, PV: 0.5, k0: 0, gB: null, jump: null, outroDone: false, prepKey: null };
+const mr = d => d.mashR || 1;                                    // how much faster than the song this deck's file runs
+const toDeck = (d, t) => t == null ? t : t / mr(d);              // song-time marks (cues, trim) on a re-timed deck
+const origAn = d => (d.key && AN[d.key]) || d.an;
+const mzB = () => D[MZ.beat], mzV = () => D[1 - MZ.beat];
+const fmt1 = s => fmt(s) + '.' + Math.floor((Math.max(0, s) % 1) * 10);
+
+// straight-line beat grid t = a + P*k through the beats in [t0, t1]: the period with the most coherent phase, then least squares
+const FIT = {};
+function fitGrid(an, t0 = 0, t1 = Infinity) {
+  const id = `${an.duration}|${an.bpm}|${t0.toFixed(2)}|${t1}`; if (FIT[id]) return FIT[id];
+  const b = an.beats.filter(t => t >= t0 && t <= t1), P0 = 60 / (an.bpm || 120);
+  if (b.length < 16) return (FIT[id] = { a: b[0] ?? 0, P: P0, rms: 1, n: b.length });
+  const span = b[b.length - 1] - b[0], step = P0 * P0 / span / 40;
+  let P = P0, best = -1;
+  for (let p = P0 * 0.94; p <= P0 * 1.06; p += step) {
+    let re = 0, im = 0; const w = 2 * Math.PI / p;
+    for (const t of b) { re += Math.cos(w * t); im += Math.sin(w * t); }
+    const c = re * re + im * im; if (c > best) { best = c; P = p; }
+  }
+  let re = 0, im = 0; for (const t of b) { re += Math.cos(2 * Math.PI * t / P); im += Math.sin(2 * Math.PI * t / P); }
+  let a = Math.atan2(im, re) / (2 * Math.PI) * P, rms = 1, n = 0;
+  for (let it = 0; it < 3; it++) {
+    let S = 0, Sk = 0, St = 0, Skk = 0, Skt = 0; const pts = [];
+    for (const t of b) { const x = (t - a) / P, k = Math.round(x); if (Math.abs(x - k) < 0.15) pts.push([k, t]); }
+    for (const [k, t] of pts) { S++; Sk += k; St += t; Skk += k * k; Skt += k * t; }
+    const den = S * Skk - Sk * Sk; if (S < 8 || !den) break;
+    P = (S * Skt - Sk * St) / den; a = (St - P * Sk) / S; n = S;
+    rms = Math.sqrt(pts.reduce((s, [k, t]) => s + (t - a - P * k) ** 2, 0) / S);
+  }
+  return (FIT[id] = { a, P, rms, n, coh: Math.sqrt(best) / b.length });
+}
+// time-scaled copy of an analysis for a deck that plays a re-timed render of its song (file time = song time / r)
+function scaleAn(an, r, bpm) {
+  const k = t => t / r, wf = an.waveform, n = Math.ceil(wf.low.length / r);
+  const rs = a => { const o = new Array(n); for (let i = 0; i < n; i++) o[i] = a[Math.min(a.length - 1, Math.floor(i * r))]; return o; };
+  return { ...an, _di: undefined, bpm: bpm || an.bpm * r, duration: an.duration / r, first_downbeat: k(an.first_downbeat), beats: an.beats.map(k), downbeats: an.downbeats.map(k),
+    sections: an.sections.map(s => ({ ...s, start: k(s.start), end: k(s.end) })), tempo_map: (an.tempo_map || []).map(([t, b]) => [k(t), b * r]),
+    waveform: { ...wf, low: rs(wf.low), mid: rs(wf.mid), high: rs(wf.high) } };
+}
+function camShift(c, s) { const k = camel(c); return k ? { n: (((k.n - 1 + 7 * s) % 12) + 12) % 12 + 1, l: k.l } : null; }   // +1 semitone = 7 steps round the wheel
+function keyFit(a, b) {
+  if (!a || !b) return null; const dn = Math.min((a.n - b.n + 12) % 12, (b.n - a.n + 12) % 12);
+  return dn === 0 && a.l === b.l ? 'same key' : dn === 1 && a.l === b.l ? 'neighbours on the wheel' : dn === 0 ? 'relative keys' : null;
+}
+function mzSuggest(p) { const kb = camel(p.aB.camelot); for (const s of [0, 1, -1, 2, -2, 3, -3]) if (keyFit(kb, camShift(p.aV.camelot, s))) return s; return 0; }
+
+// everything the mashup needs, from the two songs' own analyses (song time, not the re-timed file)
+function mzPlan() {
+  const B = mzB(), V = mzV(), aB = origAn(B), aV = origAn(V);
+  if (!B.key || !V.key || !aB || !aV || B.key === V.key) return null;
+  const ph = MZ.phrases[V.key] || [];
+  const introEnd = aV.sections?.[0]?.end ?? 0, first = ph.find(([a, b]) => b - a >= 8 && a >= introEnd - 1) || ph[0];
+  const entry = MZ.entry ?? (V.song?.cues?.length ? V.song.cues[0] : first ? first[0] : aV.first_downbeat || 0);
+  const vEnd = ph.length ? ph[ph.length - 1][1] : aV.duration;
+  const gB = fitGrid(aB, aB.first_downbeat || 0, aB.duration), gV = fitGrid(aV, Math.max(0, Math.min(entry, vEnd - 30) - 2), vEnd);
+  const tB = 60 / gB.P, tV = 60 / gV.P;
+  const opts = [1, 0.5, 2].map(m => ({ m, r: tB * m / tV }));
+  const pick = (MZ.mult && opts.find(o => o.m === MZ.mult)) || opts.slice().sort((x, y) => Math.abs(Math.log(x.r)) - Math.abs(Math.log(y.r)))[0];
+  return { B, V, aB, aV, gB, gV, tB, tV, m: pick.m, r: pick.r, target: tB * pick.m, ph, entry, vEnd };
+}
+const mzReady = p => !!p && Math.abs(mr(p.V) / p.r - 1) < 0.003 && (p.V.mashSemis || 0) === MZ.semis && !p.V.mashing;
+function mzEntries(p) {
+  const out = [], s = p.V.song;
+  if (s?.cues?.length) out.push({ t: s.cues[0], lab: `Cue 1 · ${fmt1(s.cues[0])}` });
+  for (const [a, b] of p.ph) if (b - a >= 3) out.push({ t: a, lab: `Vocal at ${fmt1(a)} (sings ${Math.round(b - a)} s)` });
+  if (!out.some(e => Math.abs(e.t - p.entry) < 0.05)) out.unshift({ t: p.entry, lab: `${fmt1(p.entry)} (picked)` });
+  return out;
+}
+// the vocal's bar line at (or just before) where it comes in, on the fitted grid; returned in the re-timed file's time
+function mzEntryFile(p) {
+  let best = null; for (const x of p.aV.downbeats) { if (x <= p.entry + 0.15) best = x; else break; }
+  if (best == null || p.entry - best > 4 * p.gV.P) best = p.entry;
+  return (p.gV.a + Math.round((best - p.gV.a) / p.gV.P) * p.gV.P) / mr(p.V);
+}
+
+function mzScanNeeded() { const V = mzV(); if (V.key && hasStems(V) && !MZ.phrases[V.key] && MZ.scanning !== V.key) { MZ.scanning = V.key; eng(V, 'mashScan', { key: V.key }); } }
+function mzUnmash(d, play = false) { eng(d, 'mash', { key: d.key, rate: 1, semis: 0, at: livePos(d) * mr(d), play }); d.mashing = true; }
+function mzPrepare() {
+  const p = mzPlan(); if (!p) { toast('Load a different song on each deck first'); return; }
+  const need = [p.B, p.V].filter(d => !isDJ(d));
+  if (need.length) { need.forEach(d => startSplit(d, true)); toast(`Splitting ${need.map(d => 'deck ' + d.name).join(' and ')} into stems first`); renderMz(); return; }
+  if (MZ.on) mzEnd(true);
+  if (M.syncOn) setSync(false);
+  for (const d of [p.B, p.V]) if (d.playing) { eng(d, 'pause'); d.pos = livePos(d); d.playing = false; }
+  if (mr(p.B) !== 1) mzUnmash(p.B);
+  MZ.prepKey = p.V.key; p.V._mzTarget = p.target; p.V.mashing = true;
+  eng(p.V, 'mash', { key: p.V.key, rate: p.r, semis: MZ.semis, at: livePos(p.V) * mr(p.V) / p.r, play: false });
+  toast(`Re-timing ${p.V.song.title} to ${p.target.toFixed(1)} BPM, key kept…`); render(); renderMz();
+}
+function mzStems(on) {
+  const B = mzB(), V = mzV();
+  if (B.stems.some(s => s.name === 'vocals')) eng(B, 'mute', { stem: 'vocals', on });
+  for (const n of ['drums', 'bass', 'melody', 'fx', 'instrumentals']) if (V.stems.some(s => s.name === n)) eng(V, 'mute', { stem: n, on });
+}
+function mzFollow() { if (MZ.on) mix('follow', { follower: mzB().i, leader: mzV().i, ratio: MZ.ratio, anchorLeader: MZ.aV, anchorFollower: MZ.aB }); }
+function mzLock(p, aV, aB) {
+  const PV = p.gV.P / mr(p.V);   // the vocal's beat in the re-timed file
+  Object.assign(MZ, { on: true, aV, aB, gB: p.gB, PV, ratio: p.gB.P / (p.m * PV), outroDone: false, jump: null, vEnd: p.vEnd / mr(p.V) });
+  M.syncOn = true; M.leader = p.V.i; M.follower = p.B.i; M.m = 1; M.masterBpm = M.masterMax = p.tB;
+  if (M.trans) cancelTransition(); M.automix = false;
+  M.fusion = 'classic'; setFade(0.5); applyFusion(true);
+  for (const d of [p.B, p.V]) { d.speed = 1; d._syncSpeed = 0; clearInterval(glides[d.i]); d.engSpeed = 1; eng(d, 'speed', { v: 1 }); }
+  mzStems(true); mzFollow();
+}
+// start the vocal (from file time eV) exactly when the beat reaches dropT
+function mzDropAt(p, dropT, eV) {
+  const B = p.B, V = p.V;
+  mix('playAt', { deck: V.i, from: eV, leader: B.i, leaderPos: dropT });
+  const wait = Math.max(0, (dropT - livePos(B)) / (B.engSpeed || 1));
+  V.pos = eV; V.at = performance.now() + wait * 1000; V.playing = true;
+  MZ.aV = eV; MZ.aB = dropT; mzFollow(); render(); renderMz();
+}
+// Start: the beat from its cue, the vocal on bar N of the beat
+function mzStart() {
+  const p = mzPlan(); if (!mzReady(p)) { toast('Prepare first'); return; }
+  const B = p.B, V = p.V, g = p.gB;
+  MZ.k0 = Math.round((cueOf(B) - g.a) / g.P);
+  const kDrop = MZ.k0 + 4 * (MZ.dropBar - 1); let kStart = MZ.k0;
+  if (kDrop - kStart < 4 && kDrop - 4 >= -g.a / g.P) kStart = kDrop - 4;   // vocal on bar 1: one bar of beat first so it lands cleanly
+  const s0 = Math.max(0, g.a + kStart * g.P), dropT = g.a + kDrop * g.P, eV = mzEntryFile(p);
+  for (const d of [B, V]) if (d.playing) { eng(d, 'pause'); d.playing = false; }
+  mix('unfollow');
+  mix('playAt', { deck: B.i, from: s0, leader: B.i, leaderPos: 0 });
+  B.pos = s0; B.at = performance.now() + 60; B.playing = true;
+  mzLock(p, eV, dropT);
+  setTimeout(() => { if (MZ.on && B.playing) mzDropAt(p, dropT, eV); }, 300);   // time the vocal off the beat once it is running
+  render(); renderMz();
+}
+// Drop in: the beat is already playing, the vocal comes in on its next 1/4/8/16-bar line
+function mzDropNext() {
+  const p = mzPlan(); if (!mzReady(p)) { toast('Prepare first'); return; }
+  const B = p.B, g = p.gB; if (!B.playing) { mzStart(); return; }
+  if (!MZ.on) MZ.k0 = Math.round((cueOf(B) - g.a) / g.P);
+  const step = 4 * MZ.nextBars, kNow = (livePos(B) + 0.5 - g.a) / g.P;
+  const kDrop = MZ.k0 + step * Math.ceil((kNow - MZ.k0) / step), dropT = g.a + kDrop * g.P;
+  if (p.V.playing) { eng(p.V, 'pause'); p.V.playing = false; }
+  mzLock(p, mzEntryFile(p), dropT); mzDropAt(p, dropT, mzEntryFile(p));
+  toast(`Vocal comes in ${Math.round((kDrop - kNow) / 4)} bar(s) from now`);
+}
+// beat jump by whole bars on the beat's next bar line; the vocal keeps going. Clicks before it lands add up.
+function mzJump(bars, why) {
+  if (!MZ.on) { toast('Start the mashup first'); return; }
+  const B = mzB(), g = MZ.gB; if (!B.playing || !bars) return;
+  const pend = MZ.jump && performance.now() < MZ.jump.until ? MZ.jump : null;
+  const kLeave = pend ? pend.kLeave : MZ.k0 + 4 * Math.ceil(((livePos(B) + 0.3 - g.a) / g.P - MZ.k0) / 4);
+  const base = pend ? pend.base : MZ.aB, leave = g.a + kLeave * g.P;
+  let total = (pend ? pend.bars : 0) + bars;
+  while (total && (leave + total * 4 * g.P < 0 || leave + total * 4 * g.P > (B.dur || 0) - 1)) total -= Math.sign(total);
+  if (!total) { toast('No room to jump that far'); return; }
+  const to = leave + total * 4 * g.P, wait = Math.max(0, (leave - livePos(B)) / (B.engSpeed || 1));
+  mix('jumpAt', { deck: B.i, leave, to });
+  MZ.aB = base + (to - leave);
+  MZ.jump = { kLeave, base, bars: total, until: performance.now() + wait * 1000 - 50 };
+  setTimeout(() => { if (B.playing) { B.pos = to; B.at = performance.now(); } }, wait * 1000);
+  toast(why || `Beat ${total > 0 ? 'skips ahead' : 'goes back'} ${Math.abs(total)} bar${Math.abs(total) > 1 ? 's' : ''} on the next bar line`);
+  renderMz();
+}
+// when the vocal has sung its last line, the beat can skip to its outro or its ending (the J Dirty edit skips 20 bars)
+function mzTick() {
+  if (!MZ.on || MZ.outroDone || MZ.after === 'keep') return;
+  const B = mzB(), V = mzV(); if (!B.playing || !V.playing || !MZ.phrases[V.key]?.length || livePos(V) < MZ.vEnd) return;
+  MZ.outroDone = true;
+  const g = MZ.gB, an = origAn(B), wf = an.waveform, lvl = wf.low.map((v, i) => Math.max(v, wf.mid[i]));
+  const pk = Math.max(...lvl); let end = (B.song?.trimOut ?? an.duration); for (let i = lvl.length - 1; i > 0; i--) if (lvl[i] > pk * 0.1) { end = Math.min(end, i / 100); break; }
+  const outro = MZ.after === 'outro' ? [...an.sections].reverse().find(s => s.label === 'Outro') : null;
+  const tgt = outro ? outro.start : end - 4 * 4 * g.P;   // the ending = the last 4 bars that still sound
+  const kNext = MZ.k0 + 4 * Math.ceil(((livePos(B) + 0.3 - g.a) / g.P - MZ.k0) / 4);
+  const kT = MZ.k0 + 4 * Math.round(((tgt - g.a) / g.P - MZ.k0) / 4), bars = (kT - kNext) / 4;
+  if (bars >= 1) mzJump(bars, `Vocal finished: the beat skips ${bars} bars to its ${outro ? 'outro' : 'ending'}`);
+}
+setInterval(mzTick, 100);
+function mzEnd(quiet = false) {
+  const wasOn = MZ.on;
+  MZ.on = false; MZ.jump = null; mix('unfollow'); M.syncOn = false;
+  if (wasOn) { for (const d of D) if (d.playing) { eng(d, 'pause'); d.pos = livePos(d); d.playing = false; } mzStems(false); }
+  for (const d of D) if (mr(d) !== 1) mzUnmash(d);
+  if (!quiet) toast('Mashup ended: both songs are back to themselves');
+  render(); renderMz();
+}
+
+// ---- the Mashup window (non-modal, like the Equalizer) ----
+function openMz() { MZ.open = true; const w = $('#w-mash'); w.hidden = false; w.style.zIndex = ++topZ; renderMz(); }
+function closeMz() { MZ.open = false; $('#w-mash').hidden = true; }
+function renderMz() {
+  const w = $('#w-mash'); if (!MZ.open || !w) return;
+  mzScanNeeded();
+  const B = mzB(), V = mzV(), p = mzPlan(), ready = mzReady(p), busy = D.some(d => d.mashing), nm = d => d.song ? esc(d.song.title) : 'nothing loaded';
+  let body = `<div class="note">Load the song with the beat on one deck and the song with the vocal on the other, then pick which deck is the beat.</div>`;
+  if (p) {
+    const pct = (p.r - 1) * 100, kb = camel(p.aB.camelot), kv = camShift(p.aV.camelot, MZ.semis), fit = keyFit(kb, kv), wob = Math.max(p.gB.rms, p.gV.rms) * 1000;
+    const ents = mzEntries(p), r = mr(V), c = r * (MZ.aV - MZ.aB / MZ.ratio);
+    body = `
+    <div class="group"><span class="lg">1 · Tempo</span>
+      <div>Beat: <b>${nm(B)}</b> stays at <b>${p.tB.toFixed(1)}</b> BPM.</div>
+      <div>Vocal: <b>${nm(V)}</b> ${p.tV.toFixed(1)} → <b>${p.target.toFixed(1)}</b> BPM (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%), key kept.</div>
+      <div class="btnrow" style="margin-top:6px"><span class="lab">Vocal timing</span><div class="seg">${[[0, 'Auto'], [1, 'As is'], [0.5, 'Half-time'], [2, 'Double-time']].map(([m, t]) => `<button class="${MZ.mult === m ? 'on' : ''}" data-mz="mult" data-v="${m}">${t}</button>`).join('')}</div></div>
+      <div class="note">Speed-up = ${p.target.toFixed(1)} ÷ ${p.tV.toFixed(1)} = ${p.r.toFixed(4)}. ${wob > 25 ? `The tempo wanders in one of these songs (${wob.toFixed(0)} ms), so the lock will work harder.` : `Both beat grids are steady (within ${wob.toFixed(0)} ms).`}${Math.abs(pct) > 20 ? ' That is a big stretch: the vocal will sound processed.' : ''}</div></div>
+    <div class="group"><span class="lg">2 · Key</span>
+      <div>Beat <b>${esc(p.aB.camelot || '--')}</b> ${esc(p.aB.key || '')} · Vocal <b>${kv ? kv.n + kv.l : '--'}</b> ${MZ.semis ? `(${esc(p.aV.camelot)} shifted ${MZ.semis > 0 ? '+' : ''}${MZ.semis} st)` : esc(p.aV.key || '')} → ${fit ? fit + ', they blend' : 'they clash'}${Math.min(p.aB.key_confidence, p.aV.key_confidence) < 0.3 ? ' (key reading unsure: trust your ears)' : ''}.</div>
+      <div class="btnrow" style="margin-top:6px"><span class="lab">Shift vocal</span><button class="pill" data-mz="semis" data-v="-1">−</button><b style="min-width:46px;text-align:center">${MZ.semis > 0 ? '+' : ''}${MZ.semis} st</b><button class="pill" data-mz="semis" data-v="1">+</button><button class="pill" data-mz="suggest">Suggest</button><button class="pill" data-mz="semis0" ${MZ.semis ? '' : 'disabled'}>0</button></div></div>
+    <div class="group"><span class="lg">3 · Stems</span>
+      <div>The beat plays without its vocal; the vocal song plays its vocal only. ${[B, V].map(d => `Deck ${d.name}: ${isDJ(d) ? 'split ✓' : d.splitting ? 'splitting…' : 'not split'}`).join(' · ')}</div></div>
+    <div class="group"><span class="lg">4 · Drop-in</span>
+      <div class="btnrow"><span class="lab">Vocal from</span><select class="sunken" data-mz="entry">${ents.map(e => `<option value="${e.t}" ${Math.abs(e.t - p.entry) < 0.05 ? 'selected' : ''}>${esc(e.lab)}</option>`).join('')}<option value="here">Where deck ${V.name} is now (${fmt1(livePos(V) * r)})</option></select>${MZ.phrases[V.key] ? '' : '<span class="lab">finding the vocal…</span>'}</div>
+      <div class="btnrow" style="margin-top:6px"><button class="pill" data-mz="start" ${ready ? '' : 'disabled'}>▶ Start · vocal on bar</button><button class="pill" data-mz="bar" data-v="-1">−</button><b style="min-width:22px;text-align:center">${MZ.dropBar}</b><button class="pill" data-mz="bar" data-v="1">+</button>
+        <span style="width:10px"></span><button class="pill" data-mz="drop" ${ready && B.playing ? '' : 'disabled'}>Drop in on the next</button><div class="seg">${[1, 4, 8, 16].map(n => `<button class="${MZ.nextBars === n ? 'on' : ''}" data-mz="nb" data-v="${n}">${n}</button>`).join('')}</div><span class="lab">bars</span></div>
+      <div class="note">${MZ.on ? `Locked: ${nm(V)} time = ${(r / MZ.ratio).toFixed(4)} × ${nm(B)} time ${c >= 0 ? '+' : '−'} ${Math.abs(c).toFixed(2)} s` : 'Start plays the beat from its cue and brings the vocal in on that bar. Drop in waits for the playing beat\'s next bar line.'}</div></div>
+    <div class="group"><span class="lg">5 · Arrangement</span>
+      <div class="btnrow"><span class="lab">Beat jump</span>${[-4, -2, -1, 1, 2, 4, 8, 16].map(n => `<button class="pill" data-mz="jump" data-v="${n}" ${MZ.on ? '' : 'disabled'}>${n > 0 ? '+' : '−'}${Math.abs(n)}</button>`).join('')}<span class="lab">bars</span></div>
+      <div class="btnrow" style="margin-top:6px"><span class="lab">When the vocal ends</span><div class="seg">${[['keep', 'Keep going'], ['outro', 'Skip to outro'], ['last', 'Skip to the ending']].map(([k, t]) => `<button class="${MZ.after === k ? 'on' : ''}" data-mz="after" data-v="${k}">${t}</button>`).join('')}</div></div>
+      <div class="note">Jumps land on the beat's next bar line and are always whole bars, so the beat never stumbles and the vocal keeps going. « » on the beat deck jump 4 bars the same way.</div></div>`;
+  }
+  w.innerHTML = `<div class="tbar"><span class="ico"></span><b>Mashup - Vocal over Beat</b><span class="cap"><button class="x" data-mz="close" title="Close (Esc)">✕</button></span></div><div class="body">
+    <div class="btnrow"><span class="lab">Beat from</span><div class="seg">${D.map(d => `<button class="${MZ.beat === d.i ? 'on' : ''}" data-mz="beat" data-v="${d.i}">Deck ${d.name}</button>`).join('')}</div><span class="lab" style="margin-left:6px">vocal from deck ${V.name}</span><span style="flex:1"></span>
+      <button class="pill" data-mz="prep" ${p && !busy && !ready ? '' : 'disabled'}>${busy ? 'Preparing…' : ready ? 'Prepared ✓' : p && [B, V].some(d => !isDJ(d)) ? 'Split + Prepare' : 'Prepare'}</button><button class="pill" data-mz="end" ${MZ.on || D.some(d => mr(d) !== 1) ? '' : 'disabled'}>End mashup</button></div>
+    ${body}</div>`;
+}
+$('#w-mash').addEventListener('click', e => {
+  const b = e.target.closest('[data-mz]'); if (!b || b.disabled || b.tagName === 'SELECT') return;
+  const a = b.dataset.mz, v = +b.dataset.v;
+  if (a === 'close') { closeMz(); return; }
+  if (a === 'beat') { if (v !== MZ.beat) { if (MZ.on) mzEnd(true); MZ.beat = v; MZ.entry = null; } }
+  else if (a === 'mult') MZ.mult = v;
+  else if (a === 'semis') MZ.semis = clamp(MZ.semis + v, -6, 6);
+  else if (a === 'semis0') MZ.semis = 0;
+  else if (a === 'suggest') { const p = mzPlan(); if (p) { MZ.semis = mzSuggest(p); toast(MZ.semis ? `Shift the vocal ${MZ.semis > 0 ? '+' : ''}${MZ.semis} st to sit in the beat's key` : 'No shift needed: the keys already blend'); } }
+  else if (a === 'prep') { mzPrepare(); return; }
+  else if (a === 'end') { mzEnd(); return; }
+  else if (a === 'start') { mzStart(); return; }
+  else if (a === 'drop') { mzDropNext(); return; }
+  else if (a === 'bar') MZ.dropBar = clamp(MZ.dropBar + v, 1, 64);
+  else if (a === 'nb') MZ.nextBars = v;
+  else if (a === 'jump') { mzJump(v); return; }
+  else if (a === 'after') MZ.after = b.dataset.v;
+  renderMz();
+});
+$('#w-mash').addEventListener('change', e => { if (e.target.dataset.mz !== 'entry') return; const V = mzV(); MZ.entry = e.target.value === 'here' ? livePos(V) * mr(V) : +e.target.value; renderMz(); });
+
+// ---------------- native -> page ----------------
+window.PD = {
+  _d: 0,
+  library(list) { lib = list; for (const d of D) { if (d.key) { const s = lib.find(x => x.key === d.key); if (s) { const was = d.song?.analysed; d.song = s; if (s.analysed && !was) getAnalysis(s).then(a => { d.an = a; render(); }); } } } renderPL(); renderMix(); },
+  imported(key, deck) { if (deck >= 0) loadSong(D[deck], key); },
+  engineState(st) {
+    const d = D[PD._d === 1 ? 1 : 0];
+    d.playing = st.playing; if (!d._hold) { d.pos = st.pos; d.at = performance.now(); } if (st.dur) d.dur = st.dur; d.engSpeed = st.speed;
+    const sig = (st.stems || []).map(s => s.name + s.mute + s.solo).join();
+    const names = (st.stems || []).map(s => s.name).join();
+    if (names !== (d.stems || []).map(s => s.name).join()) { d.stems = st.stems || []; applyStems(d); renderMz(); }
+    d.stems = st.stems || []; d.splitting = st.splitting;
+    if (!!st.mashing !== !!d.mashing && !st.mashing) { d.mashing = false; renderMz(); }
+    if (st.ended) { d.playing = false; }
+    if (sig !== d._sig) { d._sig = sig; renderDeckBits(d); if (M.editOpen && M.editDeck === d.i) renderEdit(); }
+  },
+  mixState(m) { const was = M.rec; M.rec = m.rec; M.syncError = m.syncError; if (was !== M.rec) renderMix(); },
+  levels(b) { D[PD._d === 1 ? 1 : 0].nBands = b; }, toast: m => toast(PD._d === 1 ? 'B · ' + m : m), engineError: m => toast((PD._d === 1 ? 'Deck B: ' : '') + m),
+  splitProgress(p) { const d = D[PD._d === 1 ? 1 : 0]; d.splitPct = p; renderDeckBits(d); },
+  go(v) { setView(v); },
+  mashScan(key, ph) { MZ.phrases[key] = ph; if (MZ.scanning === key) MZ.scanning = null; renderMz(); },
+  mashReady(key, r, semis) {
+    const d = D[PD._d === 1 ? 1 : 0]; if (d.key !== key) return;
+    d.mashing = false; d.mashR = r; d.mashSemis = semis;
+    if (AN[key]) d.an = r === 1 ? AN[key] : scaleAn(AN[key], r, d._mzTarget);
+    clearInterval(glides[d.i]); d.speed = 1; d.engSpeed = 1; applyTime(d); applyFusion(true);
+    if (MZ.prepKey === key) { MZ.prepKey = null; if (d === mzV()) mzStems(true); toast(`Deck ${d.name} now runs at ${d.an.bpm.toFixed(1)} BPM, key kept: press Start in the Mashup window`); }
+    render(); renderMz();
+  },
+  stemsReady(key) { for (const d of D) if (d.key === key && !isDJ(d)) eng(d, 'reloadStems', { key }); const s = lib.find(x => x.key === key); toast(`Stems ready: ${s ? s.title : 'song'}`); }, mixesChanged() {}, songImported() {}, needSongs() {},
+};
+
+// ---------------- rendering (Classic skin) ----------------
+const SV = {
+  prev: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="5" width="3" height="14"/><path d="M21 5v14l-7-7zM14 5v14l-7-7z"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>',
+  next: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5v14l7-7zM10 5v14l7-7z"/><rect x="18" y="5" width="3" height="14"/></svg>',
+  eject: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5l7 8H5z"/><rect x="5" y="15" width="14" height="3"/></svg>' };
+M.editOpen = false; M.sel = null; M.q = '';
+const fmtms = s => { if (!isFinite(s) || s < 0) s = 0; return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(Math.floor(s % 60)).padStart(2, '0'); };
+const mainDeck = () => D.filter(d => d.key).sort((a, b) => (b.playing - a.playing) || (share(b) - share(a)))[0] || focus;
+
+function setView(v) {
+  if (v === 'eq') openEqWin(focus.i);
+  else if (v === 'edit') openEdit(M.editDeck);
+  else if (v === 'library') { closeEdit(); $('#plq')?.focus(); }
+  else closeEdit();
+}
+function render() { renderDeck(D[0]); renderDeck(D[1]); renderMix(); renderPL(); renderArt(); if (M.editOpen) renderEdit(); renderMz(); }
+const renderMixer = () => { renderDeck(D[0]); renderDeck(D[1]); renderMix(); };
+const renderLibrary = () => renderPL();
+const renderQueueBar = () => { renderPL(); renderMix(); };
+
+// ---- decks ----
+function roleOf(d) { if (MZ.on && (d === mzB() || d === mzV())) return d === mzB() ? 'BEAT' : 'VOCAL'; return M.syncOn ? (M.leader === d.i ? 'LEAD' : 'SYNC') : (d.playing ? 'PLAY' : d.key ? 'CUE' : 'EMPTY'); }
+function stemRowHTML(d) {
+  const s = d.song;
+  const splitting = d.splitting ? `Splitting…${d.splitPct < 0 ? ' ' + (-d.splitPct) + 's' : ''}` : '';
+  if (!hasStems(d)) return `<button class="pill" data-act="split" ${!s || d.splitting ? 'disabled' : ''} title="AI split into vocals, drums, bass, melody and FX">${splitting || 'Split stems'}</button>`;
+  return stemList(d).map(n => { const st = d.stems.find(x => x.name === n); return `<button class="pill ${st.mute ? 'muted' : 'on'}" data-act="stem" data-stem="${n}" title="Mute or unmute ${stemLabel(n)}">${stemLabel(n)}</button>`; }).join('')
+    + (isDJ(d) ? '' : `<button class="pill" data-act="split" ${d.splitting ? 'disabled' : ''}>${splitting || '5 parts'}</button>`);
+}
+function renderDeck(d) {
+  const el = document.querySelector(`.deck[data-d="${d.i}"]`); if (!el) return;
+  const an = d.an;
+  el.classList.toggle('on', focus === d);
+  const title = d.song ? `Deck ${d.name} - ${(d.song.artist ? d.song.artist + ' - ' : '') + d.song.title}` : `Deck ${d.name}`;
+  el.innerHTML = `<div class="tbar"><span class="ico"></span><b>${esc(title)}${MZ.on ? (d === mzB() ? '  [mashup beat]' : '  [mashup vocal]') : M.syncOn ? (M.leader === d.i ? '  [leads]' : '  [follows]') : ''}${mr(d) !== 1 && !MZ.on ? '  [re-timed]' : ''}</b></div>
+  <div class="body">
+    <div class="row1">
+      <div class="lcd main sunken">
+        <div class="state"><span class="glyph" data-glyph>${d.playing ? '▶' : '■'}</span><span class="t" data-time>[${d.name}] 0:00</span></div>
+        <div class="chips"><span class="chipl">BPM <b data-bpm>${an ? an.bpm.toFixed(1) : '--'}</b></span><span class="chipl">KEY <b>${an ? esc(an.camelot) : '--'}</b></span><span class="chipl ${M.syncOn ? 'hot' : ''}"><b data-role>${roleOf(d)}</b></span></div>
+        <canvas class="spec" data-spec></canvas>
+        <div class="scroll"><span class="who" data-scroll></span></div>
+      </div>
+      <div class="side">
+        <button class="rnd ${d.fxOpen ? 'on' : ''}" data-act="fx" title="Effects">Effects</button>
+        <button class="rnd" data-act="edit" title="Edit this song">Edit…</button>
+        <button class="rnd ${d.peq.on && d.peq.bands.some(b => b.g || b.type === 'highPass' || b.type === 'lowPass') ? 'on' : ''}" data-act="peq" title="Parametric EQ">EQ…</button>
+      </div>
+    </div>
+    <div class="lcd wavebox sunken"><canvas data-zoom></canvas></div>
+    <div class="row4">
+      <button class="rbtn big ${d.playing ? 'on' : ''}" data-act="play" title="Play / pause (Space)">${d.playing ? SV.pause : SV.play}</button>
+      <button class="rbtn" data-act="stop" title="Stop and go back to the start">${SV.stop}</button>
+      <button class="rbtn" data-act="prev" title="Back to the cue (or the start)">${SV.prev}</button>
+      <button class="rbtn" data-act="back" title="Back 4 bars (Shift + ←)">«</button>
+      <div class="seek" data-seek title="Drag or click to jump"><canvas data-over></canvas></div>
+      <button class="rbtn" data-act="fwd" title="Forward 4 bars (Shift + →)">»</button>
+      <button class="rbtn" data-act="next" title="Load the next song in the playlist">${SV.next}</button>
+      <button class="rbtn" data-act="load" title="Load a song">${SV.eject}</button>
+      <button class="pill ${M.syncOn ? 'on' : ''}" data-act="sync" title="Sync both songs to one tempo" ${syncReady() ? '' : 'disabled'}>Sync</button>
+    </div>
+    <div class="row5">
+      <div class="vol"><span class="lab"><u>V</u>olume</span><input type="range" min="0" max="1" step="0.01" value="${d.vol}" data-act="vol"></div>
+      <div class="stemrow" data-stems>${stemRowHTML(d)}</div>
+    </div>
+    <div class="sb"><span data-total>Total Play: ${fmtms(d.dur)} m:s</span><span data-track class="grow">Track: 00:00 m:s</span><span data-sbinfo></span><span class="grip"></span></div>
+  </div>
+  ${d.fxOpen ? fxTray(d) : ''}`;
+  wireDeck(el, d);
+}
+function renderDeckBits(d) {
+  const el = document.querySelector(`.deck[data-d="${d.i}"]`); if (!el) return;
+  const p = el.querySelector('[data-act="play"]'); if (p) { p.classList.toggle('on', d.playing); p.innerHTML = d.playing ? SV.pause : SV.play; }
+  const g = el.querySelector('[data-glyph]'); if (g) g.textContent = d.playing ? '▶' : '■';
+  const r = el.querySelector('[data-role]'); if (r) r.textContent = roleOf(d);
+  const st = el.querySelector('[data-stems]'); if (st) { const h = stemRowHTML(d); if (st._h !== h) { st._h = h; st.innerHTML = h; } }
+  el.classList.toggle('on', focus === d);
+}
+function fxTray(d) {
+  return `<div class="win tray" data-tray><div class="tbar"><span class="ico"></span><b>Effects - Deck ${d.name}</b><span class="cap"><button class="x" data-act="fxclose" title="Close">✕</button></span></div><div class="body">
+    <div class="srow"><span class="lab">Filter</span><input type="range" min="-1" max="1" step="0.01" value="${d.filter}" data-act="filter"></div>
+    <div class="note" style="font-size:11px;color:#404040;margin:-4px 0 0 58px">left muffles · middle off · right thins</div>
+    <div class="btnrow"><button class="pill ${d.echo.on ? 'on' : ''}" data-act="echo">Echo</button>
+      <div class="seg">${[[0.25, '¼'], [0.5, '½'], [0.75, '¾'], [1, '1']].map(([b, t]) => `<button class="${d.echo.beats === b ? 'on' : ''}" data-act="echobeat" data-b="${b}">${t}</button>`).join('')}</div><span class="lab">beat</span></div>
+    <div class="srow"><span class="lab">Echo</span><input type="range" min="0" max="80" step="1" value="${d.echo.amt}" data-act="echoamt"></div>
+    <div class="srow"><span class="lab">Reverb</span><input type="range" min="0" max="60" step="1" value="${d.reverb}" data-act="reverb"></div>
+    <div class="btnrow"><button class="pill" data-act="fxreset">Reset</button></div></div></div>`;
+}
+function nextSongKey(d) {
+  const order = [...lib].sort((a, b) => a.added - b.added);
+  const i = order.findIndex(s => s.key === d.key);
+  for (let k = 1; k <= order.length; k++) { const s = order[(i + k + order.length) % order.length]; if (s && s.key !== other(d).key) return s.key; }
+  return null;
+}
+function wireDeck(el, d) {
+  if (el._wired) return; el._wired = true;
+  el.addEventListener('pointerdown', () => { if (focus !== d) { focus = d; D.forEach(renderDeckBits); renderArt(); } }, true);
+  el.addEventListener('click', e => {
+    const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
+    const a = b.dataset.act;
+    if (a === 'play') toggle(d);
+    else if (a === 'stop') { if (d.playing) { eng(d, 'pause'); d.playing = false; } seek(d, toDeck(d, d.song?.trimIn) ?? 0); renderDeckBits(d); }
+    else if (a === 'prev') { seek(d, livePos(d) - cueOf(d) > 1 ? cueOf(d) : (toDeck(d, d.song?.trimIn) ?? 0)); }
+    else if (a === 'next') { const k = nextSongKey(d); if (k) loadSong(d, k, false); }
+    else if (a === 'back') jump(d, -1);
+    else if (a === 'fwd') jump(d, 1);
+    else if (a === 'load') openPicker(d);
+    else if (a === 'edit') openEdit(d.i);
+    else if (a === 'peq') openEqWin(d.i);
+    else if (a === 'sync') setSync(!M.syncOn);
+    else if (a === 'fx') { const open = !d.fxOpen; closeTrays(); d.fxOpen = open; renderDeck(d); }
+    else if (a === 'fxclose') closeTrays();
+    else if (a === 'split') { startSplit(d); }
+    else if (a === 'stem') { const st = d.stems.find(x => x.name === b.dataset.stem); eng(d, 'mute', { stem: b.dataset.stem, on: !st.mute }); }
+    else if (a === 'echo') { d.echo.on = !d.echo.on; applyFx(d); b.classList.toggle('on', d.echo.on); }
+    else if (a === 'echobeat') { d.echo.beats = +b.dataset.b; applyFx(d); b.parentNode.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); }
+    else if (a === 'fxreset') { d.filter = 0; d.echo = { on: false, beats: 0.5, amt: 35 }; d.reverb = 0; applyFx(d); renderDeck(d); }
+  });
+  el.addEventListener('input', e => {
+    const a = e.target.dataset.act, v = +e.target.value;
+    if (a === 'vol') { d.vol = v; applyVol(d); }
+    else if (a === 'filter') { d.filter = Math.abs(v) < 0.04 ? 0 : v; applyFx(d); }
+    else if (a === 'echoamt') { d.echo.amt = v; if (d.echo.on) applyFx(d); }
+    else if (a === 'reverb') { d.reverb = v; applyFx(d); }
+  });
+  el.addEventListener('dblclick', e => { if (e.target.dataset.act === 'filter') { d.filter = 0; e.target.value = 0; applyFx(d); } });
+  // the audio follows while you scrub: seeks are sent at most ~12 times a second, and the last one always lands
+  let drag = null, lastSeek = 0, pendingT = null;
+  const scrubTo = (t, final = false) => {
+    if (!d.dur) return;
+    t = clamp(t, 0, d.dur - 0.05); d.pos = t; d.at = performance.now(); d._hold = true;
+    const now = performance.now();
+    if (final || now - lastSeek > 80) { lastSeek = now; seek(d, t); pendingT = null; } else pendingT = t;
+    if (final) { d._hold = false; renderDeckBits(d); }
+  };
+  setInterval(() => { if (pendingT != null && performance.now() - lastSeek > 80) { const t = pendingT; pendingT = null; lastSeek = performance.now(); seek(d, t); } }, 40);
+  el.addEventListener('pointerdown', e => {
+    const z = e.target.closest('[data-zoom]'), sk = e.target.closest('[data-seek]');
+    if (sk && d.dur) {   // the position bar: click or drag anywhere along it
+      const r = sk.getBoundingClientRect(), at = ev => clamp((ev.clientX - r.left - 8) / (r.width - 16), 0, 1) * d.dur;
+      scrubTo(at(e));
+      const mv = ev => scrubTo(at(ev)), up = ev => { scrubTo(at(ev), true); removeEventListener('pointermove', mv); removeEventListener('pointerup', up); };
+      addEventListener('pointermove', mv); addEventListener('pointerup', up); return;
+    }
+    if (!z || !d.key) return;
+    drag = { x: e.clientX, y: e.clientY, pos: livePos(d), w: z.clientWidth, left: z.getBoundingClientRect().left, moved: false };
+    z.setPointerCapture(e.pointerId); z.style.cursor = 'grabbing';
+  });
+  // the big waveform: drag it like a record (left = forward); a plain click jumps to the spot you clicked
+  el.addEventListener('pointermove', e => {
+    if (!drag) return; const span = 8 * (d.engSpeed || 1);
+    if (Math.abs(e.clientX - drag.x) > 3) drag.moved = true;
+    if (drag.moved) scrubTo(drag.pos - (e.clientX - drag.x) / drag.w * span);
+  });
+  el.addEventListener('pointerup', e => {
+    if (!drag) return; const span = 8 * (d.engSpeed || 1);
+    if (drag.moved) scrubTo(drag.pos - (e.clientX - drag.x) / drag.w * span, true);
+    else scrubTo(drag.pos + ((e.clientX - drag.left) / drag.w - 0.5) * span, true);
+    drag = null; const z = el.querySelector('[data-zoom]'); if (z) z.style.cursor = 'grab';
+  });
+  // trackpad: swipe sideways (or scroll) over the waveform or the position bar to move through the song
+  let wheelEnd = 0;
+  el.addEventListener('wheel', e => {
+    const z = e.target.closest('[data-zoom]'), sk = e.target.closest('[data-seek]'); if ((!z && !sk) || !d.key) return;
+    e.preventDefault();
+    const dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    const per = sk ? d.dur / sk.clientWidth : 8 * (d.engSpeed || 1) / z.clientWidth;
+    scrubTo((d._hold ? d.pos : livePos(d)) + dx * per);
+    clearTimeout(wheelEnd); wheelEnd = setTimeout(() => scrubTo(d.pos, true), 160);
+  }, { passive: false });
+  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drop'); });
+  el.addEventListener('dragleave', () => el.classList.remove('drop'));
+  el.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); el.classList.remove('drop'); $('#dropall').hidden = true; importFiles(e.dataTransfer.files, d.i); });
+}
+
+// ---- blend window ----
+function renderMix() {
+  const mi = matchInfo(), T = M.trans;
+  const status = T ? `<span>Blending</span><span class="r" id="transNote"></span>`
+    : mi ? `<span class="${mi.rate}">${esc(mi.label)}</span><span class="r">${mi.lines.map(esc).join(' · ')}</span>`
+    : `<span>Load two songs</span><span class="r">the match is rated once both are analysed</span>`;
+  $('#mixbody').innerHTML = `
+    <div class="row"><span class="abl a">A</span><div class="xf" id="xf" title="Blend · double-click to centre"><div class="tick"></div><div class="knob" id="xfKnob" style="left:${M.crossfade * 100}%"></div></div><span class="abl b">B</span></div>
+    <div class="row"><div class="status">${status}</div>
+      <button class="pill ${M.syncOn ? 'on go' : ''}" id="syncBtn" ${syncReady() ? '' : 'disabled'}>${M.syncOn ? '✓ Synced' : 'Auto Sync'}</button>
+      <span class="tempo" title="${M.syncOn ? 'Both songs play at this tempo' : 'Each song\'s own tempo'}">${M.syncOn ? `Tempo <b>${M.masterBpm.toFixed(1)}</b> BPM` : `A <b>${D[0].an ? (D[0].an.bpm * (D[0].engSpeed || 1)).toFixed(1) : '--'}</b> · B <b>${D[1].an ? (D[1].an.bpm * (D[1].engSpeed || 1)).toFixed(1) : '--'}</b>`}</span>
+      <button class="pill" id="tDown" ${M.syncOn ? '' : 'disabled'} title="Both songs slower (−)">−</button><button class="pill" id="tUp" ${M.syncOn && M.masterBpm < M.masterMax - 0.05 ? '' : 'disabled'} title="Both songs faster (=), up to the slower song's own tempo">+</button><button class="pill" id="tReset" ${M.syncOn && M.masterBpm < M.masterMax - 0.05 ? '' : 'disabled'} title="Back to the slower song's own tempo">Reset</button>
+      ${T ? `<button class="pill" id="cancelT">Cancel blend</button>` : M.lastTrans ? `<button class="pill" id="undoT">Undo blend</button>` : `<button class="pill" id="autoT" ${syncReady() ? '' : 'disabled'}>Auto blend</button>`}
+      <div class="seg">${[8, 16, 32].map(b => `<button class="${M.bars === b ? 'on' : ''}" data-bars="${b}">${b}</button>`).join('')}</div><span class="lab">bars</span></div>
+    <div class="row"><span class="lab"><u>F</u>ader</span><div class="seg" id="fusion">${FUSION.map(([k, t]) => `<button class="${M.fusion === k ? 'on' : ''}" data-fusion="${k}">${t}</button>`).join('')}</div>
+      <button class="pill ${M.automix ? 'on' : ''}" id="automixBtn" title="Plays the queue, blending each song into the next">${M.automix ? 'Automix on' : 'Automix'}${M.queue.length ? ' · ' + M.queue.length : ''}</button>
+      <span class="lab" style="flex:1;overflow:hidden;text-overflow:ellipsis">${M.queue.length ? 'Up next: ' + esc(lib.find(x => x.key === M.queue[0])?.title || '') : ''}</span>
+      <button class="pill rec ${M.rec ? 'on' : ''}" id="recPill"><span class="dot"></span>${M.rec ? 'Recording' : 'Rec mix'}</button></div>`;
+  const xf = $('#xf');
+  const at = e => { const r = xf.getBoundingClientRect(); return (e.clientX - r.left) / r.width; };
+  xf.onpointerdown = e => { if (M.trans) cancelTransition(); xf.setPointerCapture(e.pointerId); setFade(at(e)); xf._d = true; };
+  xf.onpointermove = e => { if (xf._d) { const v = at(e); setFade(Math.abs(v - 0.5) < 0.025 ? 0.5 : v); } };
+  xf.onpointerup = () => { xf._d = false; };
+  xf.ondblclick = () => setFade(0.5);
+  $('#syncBtn').onclick = () => setSync(!M.syncOn);
+  $('#tDown').onclick = () => setMaster(M.masterBpm - 0.5); $('#tUp').onclick = () => setMaster(M.masterBpm + 0.5); $('#tReset').onclick = () => setMaster(M.masterMax);
+  $('#automixBtn').onclick = () => setAutomix(!M.automix);
+  $('#recPill').onclick = () => mix('rec');
+  $$('[data-fusion]').forEach(b => b.onclick = () => setFusion(b.dataset.fusion));
+  $('#autoT') && ($('#autoT').onclick = () => startTransition());
+  $('#cancelT') && ($('#cancelT').onclick = cancelTransition);
+  $('#undoT') && ($('#undoT').onclick = undoTransition);
+  $$('[data-bars]').forEach(b => b.onclick = () => { M.bars = +b.dataset.bars; renderMix(); });
+}
+
+// ---- playlist editor (library + queue) ----
+function plRows() { const q = M.q.toLowerCase(); return [...lib].sort((a, b) => a.added - b.added).filter(s => !q || (s.title + ' ' + s.artist).toLowerCase().includes(q)); }
+function renderPL() {
+  const body = $('#plbody'); if (!body) return;
+  const keep = document.activeElement?.id === 'plq', pos = keep ? document.activeElement.selectionStart : 0, scroll = $('#pl')?.scrollTop || 0;
+  const rows = plRows();
+  const total = M.queue.reduce((t, k) => t + (lib.find(s => s.key === k)?.duration || 0), 0);
+  body.innerHTML = `<input class="plsearch sunken" id="plq" placeholder="Search…" value="${esc(M.q)}">
+    <div class="plhead"><span>Title</span><span>BPM / Key</span><span>Time</span></div>
+    <div class="pl sunken" id="pl">${rows.length ? rows.map((s, i) => {
+      const qi = M.queue.indexOf(s.key), on = D.filter(d => d.key === s.key).map(d => d.name).join('');
+      const meta = s.failed ? 'failed' : s.analysing || !s.analysed ? 'analysing…' : `${s.bpm.toFixed(1)}  ${esc(s.camelot || '')}${s.stems ? ' ♦' : s.splitting ? ' ◊' : ''}`;
+      return `<div class="prow ${M.sel === s.key ? 'sel' : ''} ${s.analysed ? '' : 'dim'}" data-key="${esc(s.key)}"><span class="n">${on ? `<span class="on">${on}</span>` : ''}${qi >= 0 ? `<span class="q">Q${qi + 1}</span>` : ''}${i + 1}. ${esc(s.artist ? s.artist + ' - ' : '')}${esc(s.title)}</span><span class="m">${meta}</span><span class="d">${fmt(s.duration)}</span></div>`;
+    }).join('') : `<div class="empty">${lib.length ? 'No songs match.' : 'No songs yet. Press + Add or drop audio files here.'}</div>`}</div>
+    <div class="plbar"><button class="pill" data-pl="add">+ Add</button><button class="pill" data-pl="rem" ${M.sel ? '' : 'disabled'}>− Rem</button>
+      <button class="pill" data-pl="queue" ${M.sel ? '' : 'disabled'}>${M.sel && M.queue.includes(M.sel) ? '− Queue' : '+ Queue'}</button><button class="pill" data-pl="split" ${M.sel && !lib.find(x => x.key === M.sel)?.stems ? '' : 'disabled'} title="Split this song now, in the background">Split</button><button class="pill" data-pl="qall">Q all</button>
+      <button class="pill" data-pl="a" ${M.sel ? '' : 'disabled'}>⏏ A</button><button class="pill" data-pl="b" ${M.sel ? '' : 'disabled'}>⏏ B</button>
+      <span class="lcdtime" title="Automix queue">Queue: ${M.queue.length} · ${fmtms(total)} m:s</span>${M.queue.length ? `<button class="pill" data-pl="qclear">Clear Q</button>` : ''}</div>`;
+  $('#pl').scrollTop = scroll;
+  const qi = $('#plq'); qi.oninput = () => { M.q = qi.value; renderPL(); };
+  if (keep) { qi.focus(); qi.setSelectionRange(pos, pos); }
+  $('#pl').onclick = e => { const r = e.target.closest('.prow'); if (!r) return; M.sel = r.dataset.key; renderPL(); };
+  $('#pl').ondblclick = e => { const r = e.target.closest('.prow'); if (!r) return; loadSong(focus, r.dataset.key); toast(`Loaded on deck ${focus.name}`); };
+  body.querySelectorAll('[data-pl]').forEach(b => b.onclick = () => {
+    const a = b.dataset.pl, k = M.sel;
+    if (a === 'add') post({ t: 'lib', cmd: 'import' });
+    else if (a === 'rem') { if (D.some(d => d.key === k)) { toast('Unload it from the deck first'); return; } post({ t: 'lib', cmd: 'remove', key: k }); M.queue = M.queue.filter(x => x !== k); M.sel = null; }
+    else if (a === 'queue') { const i = M.queue.indexOf(k); if (i >= 0) M.queue.splice(i, 1); else { M.queue.push(k); if (M.autoSplit) post({ t: 'lib', cmd: 'split', key: k }); } renderPL(); renderMix(); }
+    else if (a === 'split') { post({ t: 'lib', cmd: 'split', key: k }); toast('Splitting in the background: it\'ll be ready when you load it'); }
+    else if (a === 'qall') { for (const r of plRows()) if (r.analysed && !M.queue.includes(r.key) && !D.some(d => d.key === r.key)) { M.queue.push(r.key); if (M.autoSplit) post({ t: 'lib', cmd: 'split', key: r.key }); } renderPL(); renderMix(); }
+    else if (a === 'qclear') { M.queue = []; renderPL(); renderMix(); }
+    else if (a === 'a' || a === 'b') { loadSong(D[a === 'a' ? 0 : 1], k); toast(`Loaded on deck ${a.toUpperCase()}`); }
+  });
+}
+function openPicker(d) {
+  closePicker();
+  const bd = $('#backdrop'); bd.hidden = false; bd.onclick = closePicker;
+  const w = document.createElement('section'); w.className = 'win float'; w.id = 'pick';
+  w.innerHTML = `<div class="tbar"><span class="ico"></span><b>Load - Deck ${d.name}</b><span class="cap"><button class="x" data-x title="Close">✕</button></span></div><div class="body">
+    <input class="plsearch sunken" placeholder="Search…"><div class="plhead"><span>Title</span><span>BPM / Key</span><span>Time</span></div><div class="pl sunken"></div><div class="plbar"><span class="lab">Double-click a song, or select it and press Load</span><span style="flex:1"></span><button class="pill" data-ld disabled>Load</button><button class="pill" data-x>Cancel</button></div></div>`;
+  document.body.appendChild(w);
+  let sel = null;
+  const fill = q => { const rows = [...lib].sort((a, b) => a.added - b.added).filter(s => !q || (s.title + ' ' + s.artist).toLowerCase().includes(q));
+    w.querySelector('.pl').innerHTML = rows.length ? rows.map((s, i) => `<div class="prow ${sel === s.key ? 'sel' : ''} ${s.analysed ? '' : 'dim'}" data-key="${esc(s.key)}"><span class="n">${i + 1}. ${esc(s.artist ? s.artist + ' - ' : '')}${esc(s.title)}</span><span class="m">${s.bpm ? s.bpm.toFixed(1) + ' ' + esc(s.camelot || '') : '…'}</span><span class="d">${fmt(s.duration)}</span></div>`).join('') : '<div class="empty">No songs. Import some first.</div>'; };
+  const inp = w.querySelector('input'); fill(''); inp.focus(); inp.oninput = () => fill(inp.value.toLowerCase());
+  w.querySelector('.pl').onclick = e => { const r = e.target.closest('.prow'); if (!r) return; sel = r.dataset.key; w.querySelector('[data-ld]').disabled = false; fill(inp.value.toLowerCase()); };
+  w.querySelector('.pl').ondblclick = e => { const r = e.target.closest('.prow'); if (!r) return; loadSong(d, r.dataset.key); closePicker(); };
+  w.querySelector('[data-ld]').onclick = () => { if (sel) { loadSong(d, sel); closePicker(); } };
+  w.querySelectorAll('[data-x]').forEach(x => x.onclick = closePicker);
+}
+function closePicker() { $('#pick')?.remove(); if (!M.editOpen) $('#backdrop').hidden = true; }
+
+// ---- album art ----
+function renderArt() {
+  const d = mainDeck(), s = d?.song, c = $('#cover'); if (!c) return;
+  $('#arttitle').textContent = VJ.mode === 'cam' ? 'Handycam - live cut' : s ? `Album Art - Deck ${d.name}` : 'Album Art';
+  const url = s?.art || '';
+  if (c._u === url + (s?.key || '')) return; c._u = url + (s?.key || '');
+  if (url) { c.classList.remove('none'); c.style.backgroundImage = `url('${url}')`; c.textContent = ''; }
+  else { c.classList.add('none'); c.style.backgroundImage = ''; c.textContent = s ? d.name : '♪'; }
+}
+
+// ---- edit window ----
+function openEdit(i) { M.editDeck = i; M.editOpen = true; $('#backdrop').hidden = false; $('#backdrop').onclick = closeEdit; $('#w-edit').hidden = false; renderEdit(); }
+function closeEdit() { if (!M.editOpen) return; M.editOpen = false; $('#w-edit').hidden = true; $('#w-edit').innerHTML = ''; if (!$('#pick')) $('#backdrop').hidden = true; }
+function renderEdit() {
+  const d = D[M.editDeck], s = d.song, st = n => d.stems.find(x => x.name === n), w = $('#w-edit');
+  w.innerHTML = `<div class="tbar"><span class="ico"></span><b>Edit - Deck ${d.name}</b><span class="cap"><button class="x" data-e="close" title="Close (Esc)">✕</button></span></div><div class="body">
+    <div class="btnrow"><div class="seg">${D.map(x => `<button class="${x.i === d.i ? 'on' : ''}" data-ed="${x.i}">Deck ${x.name}</button>`).join('')}</div>
+      <b style="margin-left:6px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s ? esc((s.artist ? s.artist + ' - ' : '') + s.title) : 'Nothing loaded on this deck'}</b><span style="flex:1"></span>
+      <button class="pill" data-e="undo" ${d.hist.length ? '' : 'disabled'}><u>U</u>ndo</button><button class="pill" data-e="redo" ${d.fut.length ? '' : 'disabled'}><u>R</u>edo</button><button class="pill" data-e="close">Close</button></div>
+    <div class="group"><span class="lg">Trim and cues</span>
+      <div class="sunken wavebox" style="padding:2px"><canvas class="edwave" id="edwave"></canvas></div>
+      <div class="btnrow" style="margin-top:6px"><button class="pill" data-e="in">Set start here</button><button class="pill" data-e="out">Set end here</button><button class="pill" data-e="clrtrim">Clear trim</button><span style="width:10px"></span>
+        ${[0, 1, 2].map(j => { const c = s?.cues?.[j]; return c != null ? `<button class="pill on" data-e="jump" data-j="${j}">Cue ${j + 1} · ${fmt(c)}</button><button class="pill" data-e="delcue" data-j="${j}">✕</button>` : `<button class="pill" data-e="cue" data-j="${j}">Set cue ${j + 1}</button>`; }).join('')}</div>
+      <div class="note">Click the waveform to jump. Cue 1 is where this song comes in when it's synced or auto-blended. Edits never change your file.</div></div>
+    <div class="g2">
+      <div class="group"><span class="lg">Playback</span>
+        <div class="srow"><span class="lab">Speed</span><input type="range" min="0.8" max="1.2" step="0.005" value="${d.speed}" data-e="speed"><output id="spv">${((d.speed - 1) * 100).toFixed(1)}%</output></div>
+        <div class="srow"><span class="lab">Pitch</span><input type="range" min="-12" max="12" step="0.5" value="${d.pitch}" data-e="pitch"><output id="ptv">${d.pitch > 0 ? '+' : ''}${d.pitch} st</output></div>
+        <div class="btnrow"><button class="pill ${d.keylock ? 'on' : ''}" data-e="keylock">Keylock ${d.keylock ? 'on' : 'off'}</button><button class="pill" data-e="resettime">Reset</button></div>
+        <div class="note">Keylock keeps the key when the speed changes.${M.syncOn && M.follower === d.i ? ' Auto Sync is steering this deck\'s speed right now.' : ''}</div></div>
+      <div class="group"><span class="lg">Sound</span>
+        ${[['Low', 0], ['Mid', 2], ['High', 4]].map(([lab, i]) => { const g = d.peq.bands[i].g; return `<div class="srow"><span class="lab">${lab}</span><input type="range" min="-24" max="12" step="0.5" value="${g}" data-e="eq" data-b="${i}"><output>${g > 0 ? '+' : ''}${g} dB</output></div>`; }).join('')}
+        <div class="btnrow"><button class="pill" data-e="flat">Flat</button><button class="pill" data-e="peq">Parametric EQ…</button></div><div class="note">These move the parametric EQ's bands 1, 3 and 5. Pull Low all the way down to drop the bass out.</div></div></div>
+    <div class="group"><span class="lg">Stems</span>
+      ${hasStems(d) ? `${!isDJ(d) ? `<div class="btnrow" style="margin-bottom:6px"><button class="pill" data-e="split" ${d.splitting ? 'disabled' : ''}>Upgrade to 5 parts</button></div>` : ''}<div class="stems">${stemList(d).map(n => { const x = st(n);
+        return `<div class="stem"><div class="n"><span>${stemLabel(n).toUpperCase()}${n === 'fx' ? ' (experimental)' : ''}</span><span>${Math.round(sv(d, n) * 100)}</span></div>
+          <input type="range" min="0" max="1.5" step="0.01" value="${sv(d, n)}" data-e="stemvol" data-s="${n}" style="width:100%">
+          <div class="ms"><button class="pill ${x.mute ? 'rec on' : ''}" data-e="mute" data-s="${n}">Mute</button><button class="pill ${x.solo ? 'on' : ''}" data-e="solo" data-s="${n}">Solo</button></div></div>`; }).join('')}</div>`
+        : `<div class="btnrow"><button class="pill" data-e="split" ${!s || d.splitting ? 'disabled' : ''}>${d.splitting ? 'Splitting… (about as long as the song)' : 'Split into vocals, drums, bass, melody and FX'}</button></div><div class="note">The first split takes a minute or two; after that it loads instantly.</div>`}
+      <div class="note">AI split: Demucs for vocals, drums, bass and melody; the FX layer (BandIt Plus) is experimental.</div></div>
+  </div>`;
+  w.querySelectorAll('[data-ed]').forEach(b => b.onclick = () => { M.editDeck = +b.dataset.ed; renderEdit(); });
+  w.onclick = e => {
+    const b = e.target.closest('[data-e]'); if (!b || b.disabled) return; const a = b.dataset.e, j = +b.dataset.j, n = b.dataset.s, t = livePos(d) * mr(d);   // marks are kept in song time
+    if (a === 'close') closeEdit();
+    else if (a === 'undo') undo(d); else if (a === 'redo') redo(d);
+    else if (!s && a !== 'flat') return;
+    else if (a === 'in') { remember(d); s.trimIn = t; saveMeta(d); renderEdit(); }
+    else if (a === 'out') { remember(d); s.trimOut = t; saveMeta(d); renderEdit(); }
+    else if (a === 'clrtrim') { remember(d); s.trimIn = null; s.trimOut = null; saveMeta(d); renderEdit(); }
+    else if (a === 'cue') { remember(d); s.cues = [...(s.cues || [])]; s.cues[j] = t; s.cues = s.cues.filter(x => x != null); saveMeta(d); renderEdit(); }
+    else if (a === 'delcue') { remember(d); s.cues = (s.cues || []).filter((_, k) => k !== j); saveMeta(d); renderEdit(); }
+    else if (a === 'jump') seek(d, toDeck(d, s.cues[j]));
+    else if (a === 'keylock') { remember(d); d.keylock = !d.keylock; applyPitch(d); renderEdit(); }
+    else if (a === 'resettime') { remember(d); d.speed = 1; d.pitch = 0; applyTime(d); renderEdit(); }
+    else if (a === 'flat') { remember(d); d.peq = peqDefault(); applyEq(d); renderEdit(); }
+    else if (a === 'peq') { closeEdit(); openEqWin(d.i); }
+    else if (a === 'split') { startSplit(d); renderEdit(); }
+    else if (a === 'mute' || a === 'solo') { const x = st(n); eng(d, a, { stem: n, on: !x[a] }); }
+  };
+  w.oninput = e => {
+    const a = e.target.dataset.e, v = +e.target.value;
+    if (a === 'speed') { remember(d); d.speed = v; applyTime(d); $('#spv').textContent = ((v - 1) * 100).toFixed(1) + '%'; }
+    else if (a === 'pitch') { remember(d); d.pitch = v; applyPitch(d); $('#ptv').textContent = (v > 0 ? '+' : '') + v + ' st'; }
+    else if (a === 'eq') { remember(d); d.peq.bands[+e.target.dataset.b].g = v; d.peq.on = true; applyEq(d); e.target.nextElementSibling.textContent = (v > 0 ? '+' : '') + v + ' dB'; }
+    else if (a === 'stemvol') { const n = e.target.dataset.s; d.stemVol[n] = v; applyFusion(true); e.target.closest('.stem').querySelector('.n span:last-child').textContent = Math.round(v * 100); }
+  };
+  const c = $('#edwave'); c.onclick = e => { if (!d.dur) return; const r = c.getBoundingClientRect(); seek(d, (e.clientX - r.left) / r.width * d.dur); };
+}
+
+// ---- parametric EQ dialog ----
+// A grey display like the CD Player: grid, the deck's live spectrum, the EQ curve and five numbered points.
+// Drag a point to move its frequency and gain, scroll on it to change its width (Q), double-click it to zero it.
+const EQW = { open: false, d: null, sel: 0, drag: -1 };
+const EQG = { x0: 64, y0: 30, x1: 0, y1: 0, gmax: 18 };   // x1 / y1 set from the canvas size
+const fxQ = f => EQG.x0 + Math.log(f / 20) / Math.log(1000) * (EQG.x1 - EQG.x0), xfQ = x => 20 * 1000 ** ((x - EQG.x0) / (EQG.x1 - EQG.x0));
+const gyQ = g => (EQG.y0 + EQG.y1) / 2 - g / EQG.gmax * (EQG.y1 - EQG.y0) / 2, ygQ = y => ((EQG.y0 + EQG.y1) / 2 - y) / ((EQG.y1 - EQG.y0) / 2) * EQG.gmax;
+const isCut = b => b.type === 'highPass' || b.type === 'lowPass';
+const fmtHz = f => f >= 1000 ? (f / 1000).toFixed(f < 10000 ? 2 : 1).replace(/\.?0+$/, '') + ' kHz' : Math.round(f) + ' Hz';
+function openEqWin(i) {
+  if (EQW.open && EQW.win && !EQW.win.closed) { EQW.d = D[i]; renderEqWin(); EQW.win.focus(); return; }
+  closeEqWin(); EQW.open = true; EQW.d = D[i];
+  // its own Mac window (the app shell turns window.open into a real window you can drag to any monitor)
+  let pw = null;
+  try { pw = window.open('', 'blend-eq', 'width=880,height=610'); } catch (e) { pw = null; }
+  if (pw && pw.document) {
+    const doc = pw.document;
+    doc.open(); doc.write(`<!doctype html><html><head><meta charset="utf-8"><base href="${location.href}"><title>Equalizer</title></head><body class="popup"></body></html>`); doc.close();
+    doc.head.appendChild(document.querySelector('style').cloneNode(true));
+    const st = doc.createElement('style');
+    st.textContent = `body.popup{background:var(--face);overflow:hidden;padding:0}
+      body.popup #w-eq{position:static;transform:none;width:100%;height:100vh;box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--lite),inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--hi)}
+      body.popup #w-eq>.body{overflow:auto}`;
+    doc.head.appendChild(st);
+    const w = doc.createElement('section'); w.className = 'win on'; w.id = 'w-eq'; doc.body.appendChild(w);
+    EQW.win = pw; EQW.root = w;
+    pw.addEventListener('keydown', e => { if (e.key === 'Escape') closeEqWin(); });
+    const loop = () => { if (!EQW.open || EQW.win !== pw || pw.closed) return; drawEqWin(); pw.requestAnimationFrame(loop); };
+    pw.requestAnimationFrame(loop);
+  } else {   // no pop-out available (plain browser): an in-app dialog you can drag around inside the window
+    const w = document.createElement('section'); w.className = 'win float'; w.id = 'w-eq'; w.style.width = 'min(860px,94vw)';
+    if (EQW.pos) placeWin(w, EQW.pos.x, EQW.pos.y);
+    document.body.appendChild(w); EQW.win = null; EQW.root = w;
+  }
+  renderEqWin();
+}
+function closeEqWin(alreadyClosed = false) {
+  if (!EQW.open) return; EQW.open = false;
+  if (EQW.win) { if (!alreadyClosed && !EQW.win.closed) EQW.win.close(); } else EQW.root?.remove();
+  EQW.win = null; EQW.root = null; renderDeck(D[0]); renderDeck(D[1]);
+}
+setInterval(() => { if (EQW.open && EQW.win && EQW.win.closed) closeEqWin(true); }, 500);   // closed from outside
+function eqChanged(d) { d.peq.on = true; remember(d); applyEq(d); }
+function renderEqWin() {
+  const w = EQW.root; if (!w) return; const d = EQW.d, P = d.peq;
+  if (EQW.win) EQW.win.document.title = `Equalizer - Deck ${d.name}`;
+  const preset = PEQ_PRESETS.map(([n]) => `<option>${esc(n)}</option>`).join('');
+  w.innerHTML = `<div class="tbar"><span class="ico"></span><b>Equalizer - Deck ${d.name}${d.song ? ' - ' + esc(d.song.title) : ''}</b><span class="cap"><button class="x" data-q="close" title="Close (Esc)">✕</button></span></div>
+  <div class="body" style="padding:8px;gap:8px">
+    <div class="btnrow"><div class="seg">${D.map(x => `<button class="${x === d ? 'on' : ''}" data-qdeck="${x.i}">Deck ${x.name}</button>`).join('')}</div>
+      <label class="lab" style="display:flex;align-items:center;gap:4px;margin-left:8px"><input type="checkbox" data-q="on" ${P.on ? 'checked' : ''}> EQ <u>o</u>n</label>
+      <span style="flex:1"></span><span class="lab"><u>P</u>reset:</span><select class="sunken" data-q="preset" style="height:22px;border:0;background:#fff;padding:0 4px;font:12px var(--ui)"><option value="">Choose…</option>${preset}</select>
+      <button class="pill" data-q="flat">Flat</button></div>
+    <div class="sunken wavebox" style="padding:2px;height:250px"><canvas id="eqc" style="width:100%;height:100%;display:block;cursor:crosshair"></canvas></div>
+    <div class="note" style="font-size:11.5px;color:#404040">Drag a numbered point: left and right moves its frequency, up and down its gain. Scroll on it for width (Q). Double-click it to zero it.</div>
+    <div class="group" style="padding:12px 8px 6px"><span class="lg">Bands</span>
+      <div class="eqgrid">
+        <span class="h">Band</span><span class="h">On</span><span class="h">Type</span><span class="h">Frequency</span><span class="h">Gain</span><span class="h">Width (Q)</span>
+        ${P.bands.map((b, i) => `
+        <button class="pill ${EQW.sel === i ? 'on' : ''}" data-qsel="${i}" style="width:36px">${i + 1}</button>
+        <input type="checkbox" data-qb="on" data-i="${i}" ${b.on ? 'checked' : ''}>
+        <select class="sunken" data-qb="type" data-i="${i}">${PEQ_TYPES.map(([k, t]) => `<option value="${k}" ${b.type === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
+        <span class="srow" style="margin:0"><input type="range" min="0" max="1" step="0.001" value="${Math.log(b.f / 20) / Math.log(1000)}" data-qb="f" data-i="${i}"><output style="width:64px">${fmtHz(b.f)}</output></span>
+        <span class="srow" style="margin:0"><input type="range" min="-18" max="18" step="0.5" value="${b.g}" data-qb="g" data-i="${i}" ${isCut(b) ? 'disabled' : ''}><output style="width:56px">${isCut(b) ? '—' : (b.g > 0 ? '+' : '') + b.g + ' dB'}</output></span>
+        <span class="srow" style="margin:0"><input type="range" min="0" max="1" step="0.001" value="${Math.log(b.q / 0.1) / Math.log(180)}" data-qb="q" data-i="${i}"><output style="width:40px">${b.q.toFixed(2)}</output></span>`).join('')}
+      </div></div>
+    <div class="btnrow"><button class="pill" data-q="undo" ${d.hist.length ? '' : 'disabled'}><u>U</u>ndo</button><button class="pill" data-q="redo" ${d.fut.length ? '' : 'disabled'}><u>R</u>edo</button><span style="flex:1"></span><button class="pill" data-q="close" style="min-width:76px">Close</button></div>
+  </div>`;
+  w.querySelectorAll('[data-qdeck]').forEach(b => b.onclick = () => { EQW.d = D[+b.dataset.qdeck]; renderEqWin(); });
+  w.querySelectorAll('[data-qsel]').forEach(b => b.onclick = () => { EQW.sel = +b.dataset.qsel; renderEqWin(); });
+  w.onclick = e => { const b = e.target.closest('[data-q]'); if (!b) return; const a = b.dataset.q;
+    if (a === 'close') closeEqWin(); else if (a === 'flat') { remember(d); d.peq = peqDefault(); applyEq(d); renderEqWin(); }
+    else if (a === 'undo') { undo(d); renderEqWin(); } else if (a === 'redo') { redo(d); renderEqWin(); } };
+  w.onchange = e => {
+    const t = e.target;
+    if (t.dataset.q === 'on') { remember(d); P.on = t.checked; applyEq(d); return; }
+    if (t.dataset.q === 'preset' && t.value) { const pr = PEQ_PRESETS.find(([n]) => n === t.value); remember(d); d.peq = peqDefault(); for (const [i, type, f, g, q] of pr[1]) Object.assign(d.peq.bands[i], { type, f, g, q }); applyEq(d); renderEqWin(); return; }
+    if (t.dataset.qb === 'on') { const b = P.bands[+t.dataset.i]; b.on = t.checked; eqChanged(d); }
+    if (t.dataset.qb === 'type') { const b = P.bands[+t.dataset.i]; b.type = t.value; if (isCut(b)) b.g = 0; eqChanged(d); renderEqWin(); }
+  };
+  w.oninput = e => {
+    const t = e.target, i = +t.dataset.i, b = P.bands[i], v = +t.value; if (!b) return;
+    if (t.dataset.qb === 'f') { b.f = 20 * 1000 ** v; t.nextElementSibling.textContent = fmtHz(b.f); }
+    else if (t.dataset.qb === 'g') { b.g = v; t.nextElementSibling.textContent = (v > 0 ? '+' : '') + v + ' dB'; }
+    else if (t.dataset.qb === 'q') { b.q = 0.1 * 180 ** v; t.nextElementSibling.textContent = b.q.toFixed(2); }
+    else return;
+    EQW.sel = i; eqChanged(d);
+  };
+  const c = w.querySelector('#eqc');
+  const pt = e => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * 2, (e.clientY - r.top) * 2]; };
+  const near = (x, y) => { let best = -1, bd = 40; P.bands.forEach((b, i) => { const dd = Math.hypot(fxQ(b.f) - x, gyQ(isCut(b) ? 0 : b.g) - y); if (dd < bd) { bd = dd; best = i; } }); return best; };
+  c.onpointerdown = e => { const [x, y] = pt(e), i = near(x, y); if (i < 0) return; EQW.drag = i; EQW.sel = i; c.setPointerCapture(e.pointerId); remember(d); };
+  c.onpointermove = e => { const [x, y] = pt(e);
+    if (EQW.drag < 0) { c.style.cursor = near(x, y) >= 0 ? 'grab' : 'crosshair'; return; }
+    const b = P.bands[EQW.drag]; b.f = clamp(xfQ(x), 20, 20000); if (!isCut(b)) b.g = clamp(Math.round(ygQ(y) * 2) / 2, -EQG.gmax, EQG.gmax); b.on = true; d.peq.on = true; applyEq(d); syncEqRows(); };
+  c.onpointerup = () => { if (EQW.drag >= 0) { EQW.drag = -1; renderEqWin(); } };
+  c.ondblclick = e => { const [x, y] = pt(e), i = near(x, y); if (i >= 0) { remember(d); P.bands[i].g = 0; applyEq(d); renderEqWin(); } };
+  c.onwheel = e => { const [x, y] = pt(e), i = near(x, y); if (i < 0) return; e.preventDefault(); const b = P.bands[i]; b.q = clamp(b.q * Math.exp(-e.deltaY * 0.002), 0.1, 18); EQW.sel = i; eqChanged(d); syncEqRows(); };
+}
+function syncEqRows() {   // keep the band rows in step while dragging on the display
+  const w = EQW.root, d = EQW.d; if (!w) return;
+  d.peq.bands.forEach((b, i) => {
+    const f = w.querySelector(`[data-qb="f"][data-i="${i}"]`), g = w.querySelector(`[data-qb="g"][data-i="${i}"]`), q = w.querySelector(`[data-qb="q"][data-i="${i}"]`);
+    if (f) { f.value = Math.log(b.f / 20) / Math.log(1000); f.nextElementSibling.textContent = fmtHz(b.f); }
+    if (g && !isCut(b)) { g.value = b.g; g.nextElementSibling.textContent = (b.g > 0 ? '+' : '') + b.g + ' dB'; }
+    if (q) { q.value = Math.log(b.q / 0.1) / Math.log(180); q.nextElementSibling.textContent = b.q.toFixed(2); }
+  });
+}
+function drawEqWin() {
+  const c = EQW.root?.querySelector('#eqc'); if (!c) return; const d = EQW.d, P = d.peq;
+  const W = c.width = c.clientWidth * 2, H = c.height = c.clientHeight * 2, g = c.getContext('2d');
+  EQG.x1 = W - 24; EQG.y1 = H - 40;
+  g.fillStyle = '#808080'; g.fillRect(0, 0, W, H);
+  // live spectrum of this deck, faint
+  const b48 = d.playing ? d.nBands : null;
+  if (b48) { const n = 64, bw = (EQG.x1 - EQG.x0) / n; d._eqpk = d._eqpk || new Float32Array(n);
+    for (let i = 0; i < n; i++) { const f0 = 20 * 1000 ** (i / n), j = clamp(Math.floor(48 * Math.log(f0 / 86) / Math.log(256)), 0, 47), v = b48[j] || 0; d._eqpk[i] = Math.max(v, d._eqpk[i] - 0.02);
+      const h = d._eqpk[i] * (EQG.y1 - EQG.y0); g.fillStyle = '#9a9a9a'; g.fillRect(EQG.x0 + i * bw + 1, EQG.y1 - h, bw - 2, h); } }
+  // grid
+  g.font = '20px Tahoma'; g.textAlign = 'center';
+  for (const f of [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]) { const x = fxQ(f); g.fillStyle = '#6e6e6e'; g.fillRect(x, EQG.y0, 1, EQG.y1 - EQG.y0); g.fillStyle = '#1e1e1e'; g.fillText(f >= 1000 ? f / 1000 + 'k' : f, x, H - 12); }
+  g.textAlign = 'right';
+  for (const db of [18, 12, 6, 0, -6, -12, -18]) { const y = gyQ(db); g.fillStyle = db ? '#6e6e6e' : '#4a4a4a'; g.fillRect(EQG.x0, y, EQG.x1 - EQG.x0, db ? 1 : 2); g.fillStyle = '#1e1e1e'; g.fillText((db > 0 ? '+' : '') + db, EQG.x0 - 10, y + 7); }
+  g.textAlign = 'left'; g.fillStyle = '#1e1e1e'; g.fillText(P.on ? `Deck ${d.name}` : `Deck ${d.name} · EQ off`, EQG.x0 + 6, 22);
+  // curve
+  const curve = d._curve || computePeq(d);
+  g.save(); g.beginPath(); g.rect(EQG.x0, EQG.y0, EQG.x1 - EQG.x0, EQG.y1 - EQG.y0); g.clip();
+  g.beginPath(); for (let k = 0; k < PEQ_N; k++) { const x = fxQ(PEQ_F[k]), y = gyQ(clamp(curve[k], -30, 30)); k ? g.lineTo(x, y) : g.moveTo(x, y); }
+  g.strokeStyle = P.on ? '#ffffff' : '#b5b5b5'; g.lineWidth = 4; g.stroke();
+  g.lineTo(EQG.x1, gyQ(0)); g.lineTo(EQG.x0, gyQ(0)); g.closePath(); g.fillStyle = P.on ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.05)'; g.fill();
+  g.restore();
+  // points
+  P.bands.forEach((b, i) => {
+    const x = fxQ(b.f), y = gyQ(isCut(b) ? 0 : b.g), sel = i === EQW.sel, r = 15;
+    g.fillStyle = b.on ? '#c0c0c0' : '#9a9a9a'; g.fillRect(x - r, y - r, r * 2, r * 2);
+    g.fillStyle = '#fff'; g.fillRect(x - r, y - r, r * 2, 2); g.fillRect(x - r, y - r, 2, r * 2);
+    g.fillStyle = '#000'; g.fillRect(x - r, y + r - 2, r * 2, 2); g.fillRect(x + r - 2, y - r, 2, r * 2);
+    if (sel) { g.strokeStyle = '#000080'; g.lineWidth = 3; g.strokeRect(x - r - 4, y - r - 4, r * 2 + 8, r * 2 + 8); }
+    g.fillStyle = '#000'; g.font = 'bold 20px Tahoma'; g.textAlign = 'center'; g.fillText(i + 1, x, y + 7); g.textAlign = 'left';
+  });
+}
+
+// ---- moveable dialogs: drag by the title bar ----
+function placeWin(w, x, y) {
+  const r = w.getBoundingClientRect(), W = r.width || 600, H = r.height || 300;
+  x = clamp(x, -W + 80, innerWidth - 80); y = clamp(y, 0, innerHeight - 24);   // a bit of the title bar always stays on screen
+  Object.assign(w.style, { left: x + 'px', top: y + 'px', transform: 'none' });
+  return { x, y };
+}
+let topZ = 50;
+addEventListener('pointerdown', e => {
+  const w = e.target.closest('.float'); if (!w) return;
+  w.style.zIndex = ++topZ;   // click a dialog to bring it to the front
+  const bar = e.target.closest('.tbar'); if (!bar || e.target.closest('button,input,select')) return;
+  e.preventDefault();
+  const r = w.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+  placeWin(w, r.left, r.top); bar.style.cursor = 'move';
+  const mv = ev => { const p = placeWin(w, ev.clientX - dx, ev.clientY - dy); if (w.id === 'w-eq') EQW.pos = p; };
+  const up = () => { bar.style.cursor = ''; removeEventListener('pointermove', mv); removeEventListener('pointerup', up); };
+  addEventListener('pointermove', mv); addEventListener('pointerup', up);
+});
+addEventListener('dblclick', e => { const w = e.target.closest('.float'); if (w && e.target.closest('.tbar') && !e.target.closest('button')) { Object.assign(w.style, { left: '', top: '', transform: '' }); if (w.id === 'w-eq') EQW.pos = null; } });
+
+// ---- menu bar ----
+function syncMenuChecks() { $('#mAutoSplit').textContent = (M.autoSplit ? '✓ ' : '   ') + 'Split Stems Automatically'; $('#mHqSplit').textContent = (M.hqSplit ? '✓ ' : '   ') + 'High-Quality Splits (slower)'; }
+syncMenuChecks(); if (M.hqSplit) post({ t: 'lib', cmd: 'splitQuality', on: true });
+$('#menubar').addEventListener('click', e => {
+  const top = e.target.closest('.m>button');
+  if (top) { const m = top.parentNode, was = m.classList.contains('open'); $$('.menubar .m').forEach(x => x.classList.remove('open')); if (!was) m.classList.add('open'); return; }
+  const it = e.target.closest('[data-menu]'); if (!it) return;
+  $$('.menubar .m').forEach(x => x.classList.remove('open'));
+  const a = it.dataset.menu;
+  if (a === 'import') post({ t: 'lib', cmd: 'import' });
+  else if (a === 'queueall') { for (const r of plRows()) if (r.analysed && !M.queue.includes(r.key) && !D.some(d => d.key === r.key)) M.queue.push(r.key); renderPL(); renderMix(); }
+  else if (a === 'record') mix('rec');
+  else if (a === 'sync') setSync(!M.syncOn);
+  else if (a === 'blend') startTransition();
+  else if (a === 'automix') setAutomix(!M.automix);
+  else if (a === 'center') setFade(0.5);
+  else if (a === 'mashup') { if (MZ.open) closeMz(); else openMz(); }
+  else if (a === 'autosplit') { M.autoSplit = !M.autoSplit; saveSplitPrefs(); syncMenuChecks(); toast(M.autoSplit ? 'Songs split by themselves when loaded or queued' : 'Songs split only when you ask'); }
+  else if (a === 'hqsplit') { M.hqSplit = !M.hqSplit; saveSplitPrefs(); post({ t: 'lib', cmd: 'splitQuality', on: M.hqSplit }); syncMenuChecks(); toast(M.hqSplit ? 'High-quality splits: about 7x slower' : 'Fast splits'); }
+  else if (a === 'editA') openEdit(0); else if (a === 'editB') openEdit(1);
+  else if (a === 'eqA') openEqWin(0); else if (a === 'eqB') openEqWin(1);
+  else if (a === 'vis') toggleVisFull();
+  else if (a === 'keys') toast('Space play · Shift ← → jump 4 bars · drag or swipe the waveform to scrub · S sync · M mashup · − / = tempo · ← → blend · Tab deck · Esc back');
+});
+$('#menubar').addEventListener('mouseover', e => { const m = e.target.closest('.m'); if (m && $$('.menubar .m.open').length && !m.classList.contains('open')) { $$('.menubar .m').forEach(x => x.classList.remove('open')); m.classList.add('open'); } });
+addEventListener('pointerdown', e => { if (!e.target.closest('.menubar')) $$('.menubar .m').forEach(x => x.classList.remove('open')); }, true);
+
+// ---- visualizer: kaleidoscope of the playing song's artwork, pulsing with its bass ----
+const VIS = { mode: 'bsod', c: $('#vis'), fb: document.createElement('canvas'), img: null, url: '', gen: null, peaks: new Float32Array(32), hue: 0 };
+$('#vismode').onclick = e => { const b = e.target.closest('[data-vm]'); if (!b) return; VIS.mode = b.dataset.vm; $$('#vismode button').forEach(x => x.classList.toggle('on', x === b)); };
+function toggleVisFull() { $('#w-vis').classList.toggle('full'); }
+$('#visfull').onclick = toggleVisFull; $('#visfull2').onclick = toggleVisFull;
+function genSource() {   // no artwork: a soft colour field so the kaleidoscope still has something to fold
+  if (VIS.gen) return VIS.gen;
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+  for (let i = 0; i < 18; i++) { const x = Math.random() * 256, y = Math.random() * 256, r = 30 + Math.random() * 90, h = Math.random() * 360;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `hsla(${h},90%,65%,.9)`); gr.addColorStop(1, `hsla(${h},90%,50%,0)`); g.fillStyle = gr; g.fillRect(0, 0, 256, 256); }
+  return VIS.gen = c;
+}
+function visLevels() {
+  const d = mainDeck(), b = d?.playing ? d.nBands : null;
+  if (!b) return { bass: 0, all: 0, bands: null };
+  let bass = 0, all = 0; for (let i = 0; i < 8; i++) bass += b[i]; for (const v of b) all += v;
+  return { bass: bass / 8, all: all / b.length, bands: b };
+}
+// ---- Blue Screen: an NT crash screen whose text is the music, over a glitched mirror reflection ----
+// The top is the crash screen: the STOP code carries the live BPM and beat count, the error name follows the song's
+// section, the driver table lists the library as .sys files and the dword dump is the live spectrum in hex.
+// The bottom is the screen's reflection: flipped, squashed, torn sideways line by line (bass), with corrupted
+// characters (mids) and sparkle (highs). It steps at ~14 fps like the GIF; a kick jolts the whole screen at once.
+const BS = { layer: document.createElement('canvas'), refl: document.createElement('canvas'), step: -1, lastStep: 0, beats: 0, avg: 0, prev: 0, kick: 0, lastKick: 0, rnd: 1 };
+// the cpg shirt (web/shirt.png), digitised into a chunky CGA sprite for the blue screen
+const SHIRT = { w: 80, h: 65, base: null };
+(() => { const im = new Image(); im.onload = () => {
+  const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+  const px = x.getImageData(0, 0, im.width, im.height).data, bw = im.width / SHIRT.w, bh = im.height / SHIRT.h, base = [];
+  for (let Y = 0; Y < SHIRT.h; Y++) for (let X = 0; X < SHIRT.w; X++) {   // per sprite pixel: coverage, average light, how much of it is the black logo
+    let n = 0, cov = 0, lum = 0, dark = 0;
+    for (let y = Math.floor(Y * bh); y < Math.floor((Y + 1) * bh); y++) for (let xx = Math.floor(X * bw); xx < Math.floor((X + 1) * bw); xx++) {
+      const i = (y * im.width + xx) * 4, a = px[i + 3] / 255; n++; if (a < 0.5) continue; cov++;
+      const l = (0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2]) / 255; lum += l; if (l < 0.3) dark++;
+    }
+    base.push(cov < n * 0.5 ? -1 : dark > cov * 0.12 ? 0 : lum / cov);
+  }
+  SHIRT.base = base; }; im.src = 'shirt.png'; })();
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => (v + 0.5) / 16);
+// phase 0..1 turns the shirt from edge-on (-90°) through facing you to edge-on (+90°), then starts over: only the front ever shows
+function drawShirt(c2, cx, cy, maxW, maxH, phase) {
+  if (!SHIRT.base) return;
+  const s = Math.cos((phase - 0.5) * Math.PI), px = Math.max(2, Math.floor(Math.min(maxW / SHIRT.w, maxH / SHIRT.h)));
+  const cols = Math.round(SHIRT.w * s); if (cols < 1) return;
+  const light = 0.6 + 0.4 * s, x0 = Math.round(cx - cols * px / 2), y0 = Math.round(cy - SHIRT.h * px / 2);
+  for (let X = 0; X < cols; X++) {
+    const sx = Math.min(SHIRT.w - 1, Math.floor((X + 0.5) / cols * SHIRT.w));
+    for (let Y = 0; Y < SHIRT.h; Y++) {
+      const l = SHIRT.base[Y * SHIRT.w + sx]; if (l < 0) continue;
+      const th = BAYER[(Y & 3) * 4 + (X & 3)], v = l * light;
+      c2.fillStyle = l === 0 ? '#000055' : v > 0.8 + th * 0.18 ? '#ffffff' : v > 0.5 + th * 0.25 ? '#aaaaaa' : '#5555ff';
+      c2.fillRect(x0 + X * px, y0 + Y * px, px, px);
+    }
+  }
+}
+const ERRS = { Intro: 'SYSTEM_THREAD_EXCEPTION_NOT_HANDLED', Build: 'DRIVER_POWER_STATE_FAILURE', Drop: 'BASS_POOL_OVERFLOW', Break: 'PAGE_FAULT_IN_NONPAGED_AREA',
+  Main: 'BAD_POOL_HEADER', Outro: 'KERNEL_DATA_INPAGE_ERROR' };
+const GLYPH = '▓▒░█▄▀■□0123456789ABCDEF#%&@$=+-_|/\\';
+const hx = (n, w = 8) => (Math.max(0, Math.floor(n)) >>> 0).toString(16).toUpperCase().padStart(w, '0').slice(-w);
+function bsRand() { BS.rnd = (BS.rnd * 16807) % 2147483647; return BS.rnd / 2147483647; }
+function bsodLines(d, L) {
+  const an = d?.an, pos = d ? livePos(d) : 0, bpm = an ? an.bpm * (d.engSpeed || 1) : 0;
+  const sec = an?.sections.find(x => pos >= x.start && pos < x.end);
+  const err = !d?.key ? 'NO_MEDIA_IN_DECK' : !d.playing ? 'PLAYBACK_THREAD_SUSPENDED' : M.trans ? 'DECK_HANDOFF_IN_PROGRESS' : (ERRS[sec?.label] || 'BAD_POOL_HEADER');
+  const beat = an ? Math.floor(beatIndex(an, pos)) : 0;
+  const lines = [
+    `*** STOP: 0x000000${hx(Math.round(bpm), 2)} (0x${hx(beat)},0x${hx(pos * 1000)},0x${hx(M.crossfade * 0xFFFFFFFF)},0x${hx(M.syncOn ? 0xC0DE5EED : 0xC0000000)})`,
+    err, '',
+    `CPUID:GenuineIntel 5.2.c irql:1f  SYSVER 0xf000${hx(bpm * 10, 4)}   DECK ${d?.name || '-'}  ${an ? an.camelot + ' ' + an.key.toUpperCase() : ''}`, '',
+    'Dll Base DateStmp - Name               Dll Base DateStmp - Name'];
+  const names = lib.map(x => (x.title || 'song').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 8) + '.sys');
+  while (names.length < 16) names.push(['ntoskrnl.exe', 'hal.dll', 'atapi.sys', 'Disk.sys', 'Ntfs.sys', 'Beep.sys', 'mouclass.sys', 'vga.sys'][names.length % 8]);
+  for (let i = 0; i < 8; i++) {
+    const a = names[i * 2], b = names[i * 2 + 1];
+    lines.push(`${hx(0x80100000 + i * 0x6c00)} ${hx(0x31ec6c52 + i * 977)} - ${a.padEnd(20)} ${hx(0xfc6a8000 + i * 0x4400)} ${hx(0x31ed0a7 + i * 313)} - ${b}`);
+  }
+  lines.push('', 'Address  dword dump   Build [1381]                            - Name');
+  const bands = L.bands || new Array(48).fill(0);
+  for (let r = 0; r < 4; r++) {
+    const dw = k => hx(bands.slice((r * 5 + k) * 2, (r * 5 + k) * 2 + 2).reduce((x, v, j) => x | (Math.round(v * 255) << (j * 8)), 0) + (k === 0 ? 0x80140000 : 0));
+    lines.push(`${hx(0xfec32d84 + r * 0x1c00)} ${dw(0)} ${dw(1)} ${dw(2)} ${dw(3)} ${dw(4)}  - ${r < 2 ? 'deck_' + 'ab'[r] + '.exe' : 'ntoskrnl.exe'}`);
+  }
+  lines.push('', 'Restart and set the recovery options in the system control panel', 'or the /CRASHDEBUG system start option.');
+  return lines;
+}
+function drawBsod(g, W, H, t, L, d) {
+  const BG = '#0000aa', top = Math.round(H * 0.6);
+  // kick detector on the bass
+  const e = L.bass; if (e > 0.32 && e - BS.avg > 0.08 && t - BS.lastKick > 220) { BS.kick = 1; BS.lastKick = t; BS.beats++; }
+  BS.avg += (e - BS.avg) * 0.1; BS.kick = Math.max(0, BS.kick - 0.12);
+  // the screen text, redrawn on the GIF's ~14 fps step (or at once on a kick)
+  const step = Math.floor(t / 70);
+  if (step !== BS.step || BS.kick > 0.95) {
+    BS.step = step;
+    for (const c of [BS.layer, BS.refl]) { if (c.width !== W || c.height !== top) { c.width = W; c.height = top; } }
+    let lines = bsodLines(d, L);
+    // a small panel can't fit the whole screen legibly: keep the STOP code, the error, the live dump and the restart line
+    if (top / lines.length < 15) lines = [lines[0], lines[1], '', ...lines.slice(-8, -3), '', lines[lines.length - 2]];
+    const gl = BS.layer.getContext('2d'), gr = BS.refl.getContext('2d');
+    // fill the screen like the GIF: as big as fits both the width and the height
+    gl.font = '100px VT323, monospace'; const widest = Math.max(...lines.map(x => gl.measureText(x).width)) || 1;
+    const textW = SHIRT.base ? 0.64 : 0.95;   // the shirt spins in the right-hand third
+    var fs = Math.max(10, Math.min(top / (lines.length + 0.6), (W * textW) / widest * 100)), lh = fs;
+    const an = d?.an, spin = an && d.playing ? (beatIndex(an, livePos(d)) / 4) % 1 : (t / 4000) % 1;   // one front-facing turn per bar, slow when stopped
+    for (const [c2, corrupt] of [[gl, 0], [gr, 0.06 + L.all * 0.55 + BS.kick * 0.25]]) {
+      c2.fillStyle = BG; c2.fillRect(0, 0, W, top); c2.font = `${fs}px VT323, monospace`; c2.textBaseline = 'top'; c2.fillStyle = '#ffffff';
+      lines.forEach((ln, i) => {
+        let txt = ln;
+        if (corrupt) txt = [...ln].map(ch => ch !== ' ' && bsRand() < corrupt ? GLYPH[Math.floor(bsRand() * GLYPH.length)] : ch).join('');
+        c2.fillText(txt, Math.round(W * 0.025), Math.round(lh * 0.3) + i * lh);
+      });
+      drawShirt(c2, W * 0.83, top * 0.5, W * 0.3, top * 0.82, (spin + 1) % 1);
+    }
+  }
+  g.fillStyle = BG; g.fillRect(0, 0, W, H);
+  // top: the crash screen; a kick tears a few lines sideways
+  const jolt = BS.kick * (6 + L.bass * 30);
+  if (jolt < 0.5) g.drawImage(BS.layer, 0, 0);
+  else for (let y = 0; y < top; y += 6) { const off = bsRand() < 0.25 ? (bsRand() - 0.5) * jolt * 4 : (bsRand() - 0.5) * jolt * 0.4; g.drawImage(BS.layer, 0, y, W, 6, off, y, W, 6); }
+  // bottom: the reflection, flipped and squashed, each strip torn by the bass, fading with distance
+  const rh = H - top, squash = 1.35 + L.bass * 0.6, strip = 3;
+  for (let y = 0; y < rh; y += strip) {
+    const k = y / rh, sy = top - 1 - y * squash - (BS.step % 3) * 2; if (sy < 0) break;
+    const tear = (bsRand() - 0.5) * (4 + L.bass * 90 + BS.kick * 120) * (0.3 + k), big = bsRand() < 0.04 + L.bass * 0.12 ? (bsRand() - 0.5) * W * 0.25 : 0;
+    g.globalAlpha = Math.max(0, 0.95 - k * 0.55) * (0.85 + bsRand() * 0.15);
+    g.save(); g.translate(0, top + y + strip); g.scale(1, -1);
+    g.drawImage(BS.refl, 0, sy, W, strip * squash, tear + big, 0, W, strip);
+    g.restore();
+  }
+  g.globalAlpha = 1;
+  // a seam where screen meets reflection, scanlines, sparkle on the highs
+  g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, top, W, 2);
+  g.fillStyle = 'rgba(0,0,0,.18)'; for (let y = 0; y < H; y += 4) g.fillRect(0, y, W, 2);
+  const hi = L.bands ? (L.bands[36] + L.bands[40] + L.bands[44]) / 3 : 0;
+  for (let i = 0; i < hi * 60; i++) { g.fillStyle = 'rgba(255,255,255,.8)'; g.fillRect(bsRand() * W, top + bsRand() * rh, 2 + bsRand() * 6, 2); }
+  if (BS.kick > 0.8) { g.fillStyle = 'rgba(255,255,255,.08)'; g.fillRect(0, 0, W, H); }
+}
+function drawVis(t) {
+  const c = VIS.c, W = c.clientWidth * 2, H = c.clientHeight * 2; if (!W || !H) return;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; VIS.fb.width = W; VIS.fb.height = H; }
+  const g = c.getContext('2d'), L = visLevels(), d = mainDeck(), url = d?.song?.art || '';
+  if (url !== VIS.url) { VIS.url = url; VIS.img = null; if (url) { const im = new Image(); im.onload = () => { if (VIS.url === url) VIS.img = im; }; im.src = url; } }
+  const src = VIS.img || genSource(), beat = d?.beat?.v || 0;
+  if (VIS.mode === 'bsod') { drawBsod(g, W, H, t, L, d); return; }
+  if (VIS.mode === 'bars') {
+    g.fillStyle = '#04081a'; g.fillRect(0, 0, W, H);
+    const n = 32, bw = W / n;
+    for (let i = 0; i < n; i++) {
+      const v = L.bands ? L.bands[Math.floor(i * 48 / n)] : 0; VIS.peaks[i] = Math.max(v, VIS.peaks[i] - 0.01);
+      const h = v * H * 0.92, gr = g.createLinearGradient(0, H, 0, H - h); gr.addColorStop(0, '#2b55d6'); gr.addColorStop(0.6, '#8fb8ff'); gr.addColorStop(1, '#ffffff');
+      g.fillStyle = gr; for (let y = H; y > H - h; y -= 10) g.fillRect(i * bw + 3, y - 7, bw - 6, 7);
+      g.fillStyle = '#ffffff'; g.fillRect(i * bw + 3, H - VIS.peaks[i] * H * 0.92 - 4, bw - 6, 3);
+    }
+    return;
+  }
+  const fbg = VIS.fb.getContext('2d');
+  // feedback: last frame, slightly zoomed and turned, fading: the trails
+  g.save(); g.globalAlpha = VIS.mode === 'tunnel' ? 0.9 : 0.82; g.translate(W / 2, H / 2);
+  const z = VIS.mode === 'tunnel' ? 0.94 - L.bass * 0.05 : 1.025 + L.bass * 0.05; g.rotate((VIS.mode === 'tunnel' ? -0.01 : 0.006) + L.bass * 0.02); g.scale(z, z);
+  g.drawImage(VIS.fb, -W / 2, -H / 2, W, H); g.restore();
+  g.fillStyle = `rgba(0,0,0,${0.08 - L.all * 0.05})`; g.fillRect(0, 0, W, H);
+  // the fold: 8 mirrored wedges of the artwork
+  const n = 8, R = Math.hypot(W, H) / 2, S = Math.max(W, H) * (0.55 + L.bass * 0.5), tt = t / 1000;
+  g.save(); g.globalAlpha = VIS.mode === 'tunnel' ? 0.35 + L.all * 0.5 : 0.28 + L.all * 0.6;
+  if (beat > 0.4) g.globalCompositeOperation = 'lighter';
+  for (let k = 0; k < n; k++) {
+    g.save(); g.translate(W / 2, H / 2); g.rotate(k * 2 * Math.PI / n + tt * 0.12); if (k % 2) g.scale(1, -1);
+    g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, R, 0, 2 * Math.PI / n + 0.01); g.closePath(); g.clip();
+    g.rotate(tt * 0.2); g.drawImage(src, -S / 2 + Math.sin(tt * 0.3) * S * 0.18, -S / 2 + Math.cos(tt * 0.23) * S * 0.18, S, S);
+    g.restore();
+  }
+  g.restore();
+  if (VIS.mode === 'tunnel') { g.strokeStyle = `rgba(200,220,255,${0.2 + L.bass * 0.6})`; g.lineWidth = 3 + L.bass * 10; g.beginPath(); g.arc(W / 2, H / 2, (tt * 120) % (H / 2), 0, 7); g.stroke(); }
+  fbg.clearRect(0, 0, W, H); fbg.drawImage(c, 0, 0);
+}
+
+// ---- Handycam live cut: a folder of VHS clips, cut to the beat in the CPG edit style, live ----
+// Style: shots about one beat (median 0.47 s), a third of them a flicker of 6 frames or less;
+// cuts land on the beat; a third of cuts pass through a white flash frame; black-and-white / low saturation base with
+// red as the one colour moment; 4:3; small lowercase captions written like file names; the c·p·g mark now and then.
+// Live: shot lengths follow the playing song's sections (drops cut fastest, breaks hold and slow down), kicks punch in.
+const VJ = { mode: 'cam', clips: [], theme: 'all', pool: [], cur: null, nextBeat: 0, nextIdle: 0, flash: 0, red: 0, punch: 0, avg: 0, lastKick: 0,
+  cap: '', capUntil: 0, logoUntil: 0, logo: null, blobs: new Map(), target: null, win: null, shots: 0 };
+VJ.logo = new Image(); VJ.logo.src = 'cpg-white.png';
+async function vjInit() {
+  try { VJ.clips = await (await fetch('data/handycam/index.json', { cache: 'no-store' })).json(); } catch (e) { VJ.clips = []; }
+  const themes = [...new Set(VJ.clips.map(c => c.theme))];
+  $('#vjtheme').innerHTML = '<option value="all">All folders</option>' + themes.map(t => `<option value="${esc(t)}">${esc(t.replace(/^\d+\s*/, ''))}</option>`).join('');
+  $('#vjtheme').value = VJ.theme;
+  const note = $('#vjnote');
+  if (!VJ.clips.length) { note.hidden = false; note.textContent = 'Getting your Handycam clips ready…'; setTimeout(vjInit, 8000); return; }
+  note.hidden = true;
+  if (!VJ.pool.length) for (let i = 0; i < 4; i++) { const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.loop = true; v.preload = 'auto'; VJ.pool.push(v); vjLoad(v); }
+}
+const vjList = () => VJ.clips.filter(c => VJ.theme === 'all' || c.theme === VJ.theme);
+async function vjLoad(v) {
+  const list = vjList(); if (!list.length) return;
+  let c = list[Math.floor(Math.random() * list.length)];
+  if (VJ.pool.some(o => o !== v && o._clip === c) && list.length > 4) c = list[Math.floor(Math.random() * list.length)];
+  v._ready = false; v._clip = c;
+  try {
+    let url = VJ.blobs.get(c.file);
+    if (!url) {   // whole clip in memory so jumping around in it is instant
+      url = URL.createObjectURL(await (await fetch('data/' + c.file.split('/').map(encodeURIComponent).join('/'))).blob());
+      VJ.blobs.set(c.file, url);
+      if (VJ.blobs.size > 40) { const [k, u] = VJ.blobs.entries().next().value; if (!VJ.pool.some(o => o._clip?.file === k)) { URL.revokeObjectURL(u); VJ.blobs.delete(k); } }
+    }
+    if (v.src !== url) { v.src = url; await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = rej; }); }
+    v.currentTime = Math.random() * Math.max(0.1, v.duration - 1.2);
+    await new Promise(res => { v.onseeked = res; setTimeout(res, 600); });
+    v._ready = true;
+  } catch (e) { say('vj load ' + e); setTimeout(() => vjLoad(v), 1000); }
+}
+function vjCut(sec) {
+  const next = VJ.pool.find(v => v._ready && v !== VJ.cur); if (!next) return;
+  const prev = VJ.cur; VJ.cur = next; VJ.shots++;
+  next.playbackRate = sec === 'Break' || sec === 'Intro' || sec === 'Outro' ? 0.55 : 1;
+  next.play().catch(() => {});
+  if (prev) { prev.pause(); vjLoad(prev); }
+  if (Math.random() < 0.33) VJ.flash = 1;                                   // a third of cuts through a white frame
+  if (Math.random() < 0.18) { VJ.cap = next._clip.name; VJ.capUntil = performance.now() + 1100; }   // file-name caption
+}
+function vjTick(t) {
+  if (VJ.mode !== 'cam' || !VJ.pool.length) return;
+  const d = D.find(x => x.playing && share(x) >= 0.5) || D.find(x => x.playing), an = d?.an;
+  const L = d?.nBands, bass = L ? (L[0] + L[1] + L[2] + L[3] + L[4] + L[5]) / 6 : 0;
+  if (bass > 0.32 && bass - VJ.avg > 0.08 && t - VJ.lastKick > 200) { VJ.lastKick = t; VJ.punch = 1; }
+  VJ.avg += (bass - VJ.avg) * 0.1; VJ.punch *= 0.86; VJ.flash = Math.max(0, VJ.flash - 0.34); VJ.red = Math.max(0, VJ.red - 0.03);
+  if (!d || !an) { if (t > VJ.nextIdle) { vjCut('Break'); VJ.nextIdle = t + 2600; } return; }   // nothing playing: slow drift
+  const pos = livePos(d), bi = beatIndex(an, pos), sec = an.sections.find(x => pos >= x.start && pos < x.end)?.label || 'Main';
+  if (bi < VJ.nextBeat - 64 || bi > VJ.nextBeat + 64) VJ.nextBeat = Math.ceil(bi);   // jumped in the song
+  if (bi >= VJ.nextBeat) {
+    vjCut(sec);
+    if (sec === 'Drop' && Math.round(bi) % 4 === 0 && Math.random() < 0.35) VJ.red = 1;   // the red moment, on a drop's downbeat
+    if (sec === 'Outro' || (Math.round(bi) % 64 === 0)) VJ.logoUntil = t + 60000 / (an.bpm * (d.engSpeed || 1));   // c·p·g mark for a beat
+    const lens = { Drop: [0.5, 0.5, 1, 1, 0.25], Build: [1, 0.5, 1, 0.25], Main: [1, 1, 2, 0.5, 0.25], Break: [2, 4, 2], Intro: [2, 4], Outro: [2, 4, 2] }[sec] || [1, 1, 2];
+    let len = lens[Math.floor(Math.random() * lens.length)];
+    if (sec !== 'Break' && sec !== 'Intro' && Math.random() < 0.15) len = 0.25;   // a flicker burst
+    VJ.nextBeat = (Math.floor(bi / len + 1e-6) + 1) * len;                    // snap the next cut onto the grid
+  }
+}
+function vjDraw(c, t, red, top) {
+  const W = c.clientWidth * 2, H = c.clientHeight * 2; if (!W || !H) return;
+  for (const k of [c, top]) if (k && (k.width !== W || k.height !== H)) { k.width = W; k.height = H; }
+  const g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+  const v = VJ.cur;
+  // 4:3 frame, letterboxed, punched in on kicks with a small shake
+  const fw = Math.min(W, H * 4 / 3), fh = fw * 3 / 4, z = 1 + VJ.punch * 0.09, sx = (Math.random() - 0.5) * VJ.punch * 10, sy = (Math.random() - 0.5) * VJ.punch * 8;
+  const x0 = (W - fw) / 2, y0 = (H - fh) / 2;
+  g.save(); g.beginPath(); g.rect(x0, y0, fw, fh); g.clip();
+  if (v && v.readyState >= 2) g.drawImage(v, x0 - fw * (z - 1) / 2 + sx, y0 - fh * (z - 1) / 2 + sy, fw * z, fh * z);
+  if (VJ.punch > 0.2) { g.fillStyle = `rgba(255,255,255,${VJ.punch * 0.12})`; g.fillRect(x0, y0, fw, fh); }   // exposure lift on the kick
+  g.restore();
+  if (red) red.style.opacity = Math.min(0.8, VJ.red).toFixed(3);
+  if (!top) return;
+  const o = top.getContext('2d'); o.clearRect(0, 0, W, H);
+  if (VJ.flash > 0) { o.fillStyle = `rgba(255,255,255,${Math.min(1, VJ.flash)})`; o.fillRect(x0, y0, fw, fh); }   // the white flash frame
+  const now = performance.now();
+  if (now < VJ.capUntil) { o.fillStyle = '#fff'; o.font = `${Math.round(fh / 26)}px 'Share Tech Mono', monospace`; o.textAlign = 'center'; o.fillText(VJ.cap, W / 2, y0 + fh * 0.9); }
+  if (now < VJ.logoUntil && VJ.logo.complete) { const lw = fw * 0.16, lh = lw * VJ.logo.height / VJ.logo.width; o.drawImage(VJ.logo, W / 2 - lw / 2, H / 2 - lh / 2, lw, lh); }
+}
+function setArtMode(m) {
+  VJ.mode = m; $$('#artmode button').forEach(b => b.classList.toggle('on', b.dataset.am === m));
+  $('#vjbox').hidden = m !== 'cam'; $('#cover').hidden = m === 'cam'; $('#vjtheme').disabled = m !== 'cam'; $('#vjpop').disabled = m !== 'cam';
+  if (m !== 'cam') VJ.cur?.pause(); renderArt();
+}
+$('#artmode').onclick = e => { const b = e.target.closest('[data-am]'); if (b) setArtMode(b.dataset.am); };
+$('#vjtheme').onchange = e => { VJ.theme = e.target.value; VJ.pool.forEach(v => { if (v !== VJ.cur) vjLoad(v); }); };
+// Pop Out: the live cut in its own window (drag it to a second screen; double-click it for full screen)
+function vjPop() {
+  if (VJ.win && !VJ.win.closed) { VJ.win.focus(); return; }
+  const pw = window.open('', 'blend-cam', 'width=960,height=720'); if (!pw) return;
+  const doc = pw.document;
+  doc.open(); doc.write(`<!doctype html><html><head><meta charset="utf-8"><base href="${location.href}"><title>Handycam</title><style>html,body{margin:0;height:100%;background:#000;overflow:hidden}
+    .vjstack{position:relative;width:100vw;height:100vh;overflow:hidden}.vjstack>*{position:absolute;inset:0;width:100%;height:100%;display:block}
+    .vjbase{filter:grayscale(.88) contrast(1.18) brightness(1.02)}.vjred{background:#d0201a;mix-blend-mode:color;opacity:0;pointer-events:none}</style></head>
+    <body><div class="vjstack"><canvas class="vjbase"></canvas><div class="vjred"></div><canvas class="vjtop"></canvas></div></body></html>`); doc.close();
+  const c = doc.querySelector('.vjbase'), rd = doc.querySelector('.vjred'), tp = doc.querySelector('.vjtop'), stack = doc.querySelector('.vjstack'); VJ.win = pw; VJ.target = c;
+  stack.ondblclick = () => { if (doc.fullscreenElement) doc.exitFullscreen(); else stack.requestFullscreen?.(); };
+  pw.addEventListener('keydown', e => { if (e.key === 'Escape' && !doc.fullscreenElement) pw.close(); });
+  $('#vjnote').hidden = false; $('#vjnote').textContent = 'Playing in its own window';
+  const loop = tt => { if (pw.closed) { VJ.win = null; VJ.target = null; $('#vjnote').hidden = true; return; } vjTick(performance.now()); vjDraw(c, tt, rd, tp); pw.requestAnimationFrame(loop); };
+  pw.requestAnimationFrame(loop);
+}
+$('#vjpop').onclick = vjPop;
+vjInit();
+window.VJdbg = VJ; VJ.dbg = { tick: t => vjTick(t), cut: s => vjCut(s), draw: () => vjDraw($('#vj'), performance.now(), $('#vjred'), $('#vjtop')) };   // for checks
+
+// ---- per-frame drawing ----
+const WAVE = '#e6e6e6';
+function drawZoom(d, c) {
+  const W = c.width = c.clientWidth * 2, H = c.height = c.clientHeight * 2, g = c.getContext('2d');
+  g.fillStyle = '#808080'; g.fillRect(0, 0, W, H);
+  const an = d.an, pos = livePos(d), span = 8 * (d.engSpeed || 1), t0 = pos - span / 2, pxs = W / span;
+  if (an) {
+    // faint grid: a line on every beat, a darker one on every bar
+    const di = new Set(downIdx(an)), b = an.beats;
+    for (let i = 0; i < b.length; i++) { const x = (b[i] - t0) * pxs; if (x < 0 || x > W) continue; g.fillStyle = di.has(i) ? '#5c5c5c' : '#737373'; g.fillRect(Math.round(x), 0, di.has(i) ? 2 : 1, H); }
+    g.fillStyle = '#737373'; g.fillRect(0, Math.round(H / 2), W, 1);
+    for (const s of an.sections) { const x0 = (s.start - t0) * pxs; if (x0 < -300 || x0 > W) continue; g.fillStyle = '#2b2b2b'; g.font = '20px Tahoma'; g.fillText(s.label, Math.max(6, x0 + 6), 22); }
+    const wf = an.waveform, mid = H / 2;
+    g.fillStyle = WAVE;
+    for (let x = 0; x < W; x += 2) {
+      const t = t0 + x / pxs; if (t < 0 || t > an.duration) continue;
+      const k = Math.floor(t * 100), v = Math.max(wf.low[k] || 0, (wf.mid[k] || 0) * 0.9, (wf.high[k] || 0) * 0.7), h = v / 255 * mid * 0.92;
+      g.fillRect(x, mid - h, 2, h * 2);
+    }
+    const s = d.song;
+    (s?.cues || []).forEach((cq, j) => { const x = (toDeck(d, cq) - t0) * pxs; if (x >= 0 && x <= W) { g.fillStyle = '#00ff00'; g.fillRect(x - 1, 0, 2, H); g.fillStyle = '#000'; g.font = '18px Tahoma'; g.fillText('Cue ' + (j + 1), x + 5, H - 6); } });
+    for (const [t, lab] of [[toDeck(d, s?.trimIn), 'Start'], [toDeck(d, s?.trimOut), 'End']]) if (t != null) { const x = (t - t0) * pxs; if (x >= 0 && x <= W) { g.fillStyle = '#ffff00'; g.fillRect(x - 1, 0, 2, H); g.fillStyle = '#000'; g.fillText(lab, x + 5, 44); } }
+  } else { g.fillStyle = '#d0d0d0'; g.font = '24px Tahoma'; g.textAlign = 'center'; g.fillText(d.song ? (d.song.analysed ? 'Loading waveform…' : 'Analysing beats, key and sections…') : 'Drop a song here or press Load', W / 2, H / 2 + 8); g.textAlign = 'left'; }
+  g.fillStyle = '#ffffff'; g.fillRect(W / 2 - 1, 0, 2, H);
+}
+// the seek trackbar: sunken groove, section ticks, cue marks, a raised thumb (in the edit dialog: the whole song as a grey display)
+function drawOver(d, c, edit = false) {
+  const W = c.width = c.clientWidth * 2, H = c.height = c.clientHeight * 2, g = c.getContext('2d');
+  const an = d.an, dur = d.dur || an?.duration || 0, s = d.song;
+  if (edit) {
+    g.fillStyle = '#808080'; g.fillRect(0, 0, W, H); if (!an || !dur) return;
+    an.sections.forEach((sc, j) => { g.fillStyle = j % 2 ? '#7a7a7a' : '#868686'; g.fillRect(sc.start / dur * W, 0, (sc.end - sc.start) / dur * W, H); g.fillStyle = '#2b2b2b'; g.font = '20px Tahoma'; g.fillText(sc.label, sc.start / dur * W + 6, 22); });
+    const wf = an.waveform.low, n = wf.length, step = n / W; g.fillStyle = WAVE;
+    for (let x = 0; x < W; x += 2) { let m = 0; for (let k = Math.floor(x * step); k < Math.floor((x + 2) * step); k++) m = Math.max(m, wf[k] || 0); const h = m / 255 * H * 0.85; g.fillRect(x, H / 2 - h / 2, 2, h); }
+    if (s?.trimIn != null) { g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(0, 0, toDeck(d, s.trimIn) / dur * W, H); }
+    if (s?.trimOut != null) { g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(toDeck(d, s.trimOut) / dur * W, 0, W, H); }
+    (s?.cues || []).forEach(cq => { g.fillStyle = '#00ff00'; g.fillRect(toDeck(d, cq) / dur * W - 1, 0, 2, H); });
+    g.fillStyle = '#fff'; g.fillRect(livePos(d) / dur * W - 1, 0, 3, H); return;
+  }
+  g.clearRect(0, 0, W, H);
+  const L = 16, R = W - 16, y = H / 2;
+  g.fillStyle = '#808080'; g.fillRect(L, y - 4, R - L, 2); g.fillStyle = '#000'; g.fillRect(L + 2, y - 2, R - L - 4, 2); g.fillStyle = '#fff'; g.fillRect(L, y + 2, R - L, 2); g.fillStyle = '#dfdfdf'; g.fillRect(L + 2, y, R - L - 4, 2);
+  if (an && dur) for (const sc of an.sections) { const x = L + sc.start / dur * (R - L); g.fillStyle = '#000'; g.fillRect(x, H - 8, 2, 7); }
+  (s?.cues || []).forEach(cq => { const x = L + toDeck(d, cq) / dur * (R - L); g.fillStyle = '#008000'; g.fillRect(x - 1, 2, 3, 8); });
+  if (!dur) return;
+  const x = L + clamp(livePos(d) / dur, 0, 1) * (R - L), tw = 22, th = H - 4;
+  g.fillStyle = '#c0c0c0'; g.fillRect(x - tw / 2, 2, tw, th);
+  g.fillStyle = '#fff'; g.fillRect(x - tw / 2, 2, tw, 2); g.fillRect(x - tw / 2, 2, 2, th);
+  g.fillStyle = '#000'; g.fillRect(x - tw / 2, th, tw, 2); g.fillRect(x + tw / 2 - 2, 2, 2, th);
+  g.fillStyle = '#808080'; g.fillRect(x - tw / 2 + 2, th - 2, tw - 4, 2); g.fillRect(x + tw / 2 - 4, 4, 2, th - 4);
+}
+function drawSpec(d, c) {
+  const W = c.width = c.clientWidth * 2, H = c.height = c.clientHeight * 2, g = c.getContext('2d'), n = 18, bw = W / n, b = d.playing ? d.nBands : null;
+  g.clearRect(0, 0, W, H); d._pk = d._pk || new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const v = b ? b[Math.floor(i * 48 / n)] : 0; d._pk[i] = Math.max(v, d._pk[i] - 0.015);
+    const segs = 8, lit = Math.round(v * segs);
+    for (let s2 = 0; s2 < segs; s2++) { g.fillStyle = s2 < lit ? '#7ff3ff' : '#0b2a2e'; g.fillRect(i * bw + 2, H - (s2 + 1) * (H / segs) + 2, bw - 4, H / segs - 3); }
+  }
+}
+let lastSlow = 0;
+function frame(t) {
+  for (const d of D) {
+    const el = document.querySelector(`.deck[data-d="${d.i}"]`); if (!el) continue;
+    const z = el.querySelector('[data-zoom]'), o = el.querySelector('[data-over]'), sp = el.querySelector('[data-spec]');
+    if (z) drawZoom(d, z); if (o) drawOver(d, o); if (sp) drawSpec(d, sp);
+    const tm = el.querySelector('[data-time]'); if (tm) tm.textContent = `[${d.name}] ${fmtms(livePos(d))}`;
+    const tr = el.querySelector('[data-track]'); if (tr) tr.textContent = `Track: ${fmtms(livePos(d))} m:s${d.key ? '   (−' + fmtms(d.dur - livePos(d)) + ')' : ''}`;
+    const tt = el.querySelector('[data-total]'); if (tt) tt.textContent = `Total Play: ${fmtms(d.dur)} m:s`;
+    const si = el.querySelector('[data-sbinfo]'); if (si) { const s2 = d.song, txt = !s2 ? 'No song' : s2.failed ? 'Analysis failed' : !s2.analysed ? 'Analysing…' : d.splitting ? 'Splitting stems…' : M.syncOn ? (M.leader === d.i ? 'Leading' : `In sync (${(M.syncError * 1000).toFixed(0)} ms)`) : 'Ready'; if (si.textContent !== txt) si.textContent = txt; }
+    const bp = el.querySelector('[data-bpm]'); if (bp && d.an) bp.textContent = (d.an.bpm * (d.engSpeed || 1)).toFixed(1);
+    const sc = el.querySelector('[data-scroll]');
+    if (sc) { const s = d.song, txt = s ? `${(s.artist ? s.artist + ' - ' : '') + s.title}` + (s.analysed ? '' : '  (analysing…)') : 'No song loaded';
+      if (sc.textContent !== txt) sc.textContent = txt; const box = sc.parentNode.clientWidth, w = sc.scrollWidth;
+      sc.style.transform = w > box ? `translateX(${-((t / 40) % (w + 60)) + (((t / 40) % (w + 60)) > w ? w + 60 : 0)}px)` : ''; }
+  }
+  if (M.editOpen) { const c = $('#edwave'); if (c) drawOver(D[M.editDeck], c, true); }
+  drawVis(t);
+  if (!VJ.win) { try { vjTick(t); if (VJ.mode === 'cam') vjDraw($('#vj'), t, $('#vjred'), $('#vjtop')); } catch (e) { if (!VJ.errLogged) { VJ.errLogged = true; say('vj ' + e.stack); } } }
+  if (EQW.open && !EQW.win) drawEqWin();   // a popped-out EQ draws on its own window's clock
+  const tn = $('#transNote'); if (tn && M.trans) { const T = M.trans, X = D[T.X], p = (beatIndex(X.an, livePos(X)) - T.i0) / (T.i1 - T.i0); tn.textContent = p < 0 ? `starts in ${Math.max(0, Math.ceil(-p * (T.i1 - T.i0) / 4))} bars` : `${Math.round(clamp(p, 0, 1) * 100)}%`; }
+  if (t - lastSlow > 500) { lastSlow = t; for (const d of D) renderDeckBits(d); renderArt(); }
+  requestAnimationFrame(frame);
+}
+
+// timing that must keep going while the window is hidden (screen frames stop then): blends, Automix, trimmed ends
+setInterval(() => {
+  for (const d of D) { const o = toDeck(d, d.song?.trimOut); if (d.playing && o != null && livePos(d) >= o) { eng(d, 'pause'); d.playing = false; d.pos = o; render(); } }
+  tickTransition();
+}, 40);
+
+// ---------------- keys + drops ----------------
+function backOut() {
+  if ($$('.menubar .m.open').length) { $$('.menubar .m').forEach(x => x.classList.remove('open')); return true; }
+  if ($('#pick')) { closePicker(); return true; }
+  if (D.some(d => d.fxOpen)) { closeTrays(); return true; }
+  if (M.editOpen) { closeEdit(); return true; }
+  if (MZ.open) { closeMz(); return true; }
+  if (EQW.open) { closeEqWin(); return true; }
+  if ($('#w-vis').classList.contains('full')) { toggleVisFull(); return true; }
+  return false;
+}
+addEventListener('pointerdown', e => {
+  if (!D.some(d => d.fxOpen)) return;
+  if (e.target.closest('[data-tray]') || e.target.closest('[data-act="fx"]')) return;
+  closeTrays();   // just take the panel away, so the click still lands on what you clicked
+}, true);
+function closeTrays() { D.forEach(d => d.fxOpen = false); $$('[data-tray]').forEach(t => t.remove()); $$('[data-act="fx"]').forEach(b => b.classList.remove('on')); }
+addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if (backOut()) { e.preventDefault(); return; } }
+  if (e.target.closest('input')) return;
+  if (e.key === ' ') { e.preventDefault(); toggle(focus); }
+  else if (e.key === 'ArrowLeft' && e.shiftKey) { e.preventDefault(); jump(focus, -1); }
+  else if (e.key === 'ArrowRight' && e.shiftKey) { e.preventDefault(); jump(focus, 1); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); setFade(M.crossfade - 0.05); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); setFade(M.crossfade + 0.05); }
+  else if (e.key === 's' || e.key === 'S') setSync(!M.syncOn);
+  else if (e.key === 'm' || e.key === 'M') { if (MZ.open) closeMz(); else openMz(); }
+  else if (M.syncOn && (e.key === '-' || e.key === '=')) setMaster(M.masterBpm + (e.key === '=' ? 0.5 : -0.5));
+  else if (e.key === 'Tab') { e.preventDefault(); focus = other(focus); toast(`Deck ${focus.name}`); }
+});
+const b64 = buf => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+async function importFiles(files, deck = -1) {
+  const list = [...files].filter(f => f.type.startsWith('audio/') || /\.(mp3|m4a|aac|wav|aiff?|flac|ogg)$/i.test(f.name));
+  if (!list.length) { toast('No audio files in that drop'); return; }
+  toast(`Adding ${list.length} song${list.length > 1 ? 's' : ''}…`);
+  for (const [k, f] of list.entries()) post({ t: 'lib', cmd: 'importData', name: f.name, data: b64(await f.arrayBuffer()), deck: k === 0 ? deck : -1 });
+}
+let dd = 0;
+addEventListener('dragenter', e => { if (e.dataTransfer?.types?.includes('Files')) { dd++; $('#dropall').hidden = false; } });
+addEventListener('dragleave', () => { dd = Math.max(0, dd - 1); if (!dd) $('#dropall').hidden = true; });
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => { e.preventDefault(); dd = 0; $('#dropall').hidden = true; if (e.dataTransfer?.files?.length) importFiles(e.dataTransfer.files); });
+
+render();
+post({ t: 'lib', cmd: 'list' });
+requestAnimationFrame(frame);
+window.BL = { MZ, mzPlan, mzPrepare, mzStart, mzDropNext, mzJump, mzEnd, openMz, fitGrid, scaleAn, D, M, lib: () => lib, AN, matchInfo, tempoPlan, beatIndex, beatTime, loadSong, toggle, setSync, startTransition, setView, livePos, setFusion, setFade, setAutomix, openEdit, openEqWin, applyEq, PEQ_PRESETS, peqDefault, setMaster };   // for checks
+})();
+</script>
+</body>
+</html>
